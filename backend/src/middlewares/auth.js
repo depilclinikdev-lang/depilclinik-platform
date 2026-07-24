@@ -45,6 +45,7 @@ export const protect = async (req, res, next) => {
     req.user = {
       id: user.user_id || user.id,
       role: user.rol || user.role,
+      name: user.name,
     };
     next();
   } catch (error) {

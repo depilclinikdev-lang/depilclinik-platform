@@ -15,7 +15,7 @@ services:
     environment:
       TZ: America/Monterrey
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test:
@@ -33,11 +33,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     env_file:
       - .env
     environment:
@@ -48,8 +43,13 @@ services:
       - TZ=America/Monterrey
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - NODE_ENV=production
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
     depends_on:
       db:
         condition: service_healthy
@@ -62,18 +62,38 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - skinclinic-network
+
+  db-backup:
+    build:
+      context: ./backup
+    container_name: skinclinic-db-backup
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      - VITE_WATCH=true
-    command: npm run dev -- --host
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
     networks:
       - skinclinic-network
 
 networks:
   skinclinic-network:
     driver: bridge
+
+volumes:
+  mysql_data:

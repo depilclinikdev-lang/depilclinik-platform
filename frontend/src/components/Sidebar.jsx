@@ -1,5 +1,4 @@
 import React from "react";
-import { Children } from "react";
 import {
   LuLayoutDashboard,
   LuBriefcase,
@@ -12,7 +11,6 @@ import {
   LuChevronRight,
   LuMessageCircle,
 } from "react-icons/lu";
-import WhatsAppPage from "../pages/WhatsAppPage";
 
 const getInitials = (name) => {
   if (!name) return "U";

@@ -8,10 +8,6 @@ import { globalLimiter } from "./src/middlewares/rateLimiter.js";
 import swaggerSpec from "./src/config/swagger.js";
 import swaggerUi from "swagger-ui-express";
 
-// Modelos necesarios
-import SaleItem from "./src/models/SaleItem.js";
-import Service from "./src/models/Service.js";
-
 // Rutas
 import authRoutes from "./src/routes/authRoutes.js";
 import customerRoutes from "./src/routes/customerRoutes.js";
@@ -26,6 +22,7 @@ import dashboardRoutes from "./src/routes/dashboardRoutes.js";
 import whatsappRoutes from "./src/routes/whatsappRoutes.js";
 import "./src/workers/whatsappWorker.js"; // arranca el worker al importar
 import { startWhatsappScheduler } from "./src/jobs/scheduleWhatsappReminders.js";
+import { startMonthlyIncomeBackup } from "./src/jobs/scheduleMonthlyIncomeBackup.js";
 
 dotenv.config();
 
@@ -47,9 +44,6 @@ app.use(globalLimiter);
 if (process.env.NODE_ENV !== "production") {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 }
-
-// Única asociación faltante para conectar SaleItem con Service
-SaleItem.belongsTo(Service, { foreignKey: "serviceId", as: "service" });
 
 // Endpoints del sistema
 app.use("/api/dashboard", dashboardRoutes);
@@ -98,6 +92,7 @@ async function startServer() {
       "Conexión con MySQL verificada. El esquema se gestiona manualmente vía init.sql.",
     );
     startWhatsappScheduler();
+    startMonthlyIncomeBackup();
   } catch (error) {
     console.error(
       "Error al verificar la conexión con la base de datos:",

@@ -72,7 +72,7 @@ const QuickCustomerModal = ({ isOpen, onClose, onCreated }) => {
           </p>
         )}
 
-        <div onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-primary">
               Nombre Completo *
@@ -128,14 +128,13 @@ const QuickCustomerModal = ({ isOpen, onClose, onCreated }) => {
           </div>
 
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading}
             className="mt-2 px-5 py-2.5 rounded-full bg-secondary text-white font-bold text-xs hover:bg-[#14676f] transition-colors cursor-pointer shadow-sm disabled:opacity-50"
           >
             {loading ? "Guardando..." : "Registrar y Seleccionar"}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -1,6 +1,13 @@
 import sequelize from "../config/db.js";
 import User from "../models/User.js";
 
+if (process.env.NODE_ENV === "production") {
+  console.error(
+    "Los seeders no pueden ejecutarse en producción (NODE_ENV=production).",
+  );
+  process.exit(1);
+}
+
 const run = async () => {
   try {
     await sequelize.authenticate();

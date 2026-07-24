@@ -9,7 +9,7 @@ import Agenda from "./Agenda";
 import ServicesPage from "./ServicesPage";
 import AssessmentHistoryPage from "./AssessmentHistoryPage";
 import IngresosPage from "./IngresosPage";
-import DashboardHome from "./DashboardPage";
+import AdminOverview from "./AdminOverview";
 import CollaboratorDashboard from "./CollaboratorDashboard";
 import WhatsAppPage from "./WhatsAppPage";
 
@@ -76,7 +76,7 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
             />
           );
         }
-        return <DashboardHome userRole={user?.role} />;
+        return <AdminOverview userRole={user?.role} />;
 
       case "empleados":
         if (user?.role !== "Administrador") {

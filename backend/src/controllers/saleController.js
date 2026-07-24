@@ -286,96 +286,111 @@ export const getSalesHistory = async (req, res) => {
   }
 };
 
-// Genera un reporte PDF de ventas respetando los mismos filtros del historial
-export const exportSalesPdf = async (req, res) => {
-  try {
-    const { marca, search } = req.query;
-    let { dateFrom, dateTo } = req.query;
+const buildSalesPdfBuffer = async ({
+  marca,
+  dateFrom,
+  dateTo,
+  search,
+  generatedByName,
+}) => {
+  const where = {};
+  if (marca) where.marca = marca;
 
-    // Blindaje: nunca permitir fechas futuras en el reporte
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
-    if (dateTo && dateTo > todayStr) {
-      dateTo = todayStr;
-    }
-    const where = {};
+  if (dateFrom || dateTo) {
+    where.created_at = {};
+    if (dateFrom) where.created_at[Op.gte] = new Date(`${dateFrom}T00:00:00`);
+    if (dateTo) where.created_at[Op.lte] = new Date(`${dateTo}T23:59:59`);
+  }
 
-    if (marca) where.marca = marca;
+  if (search) {
+    where[Op.or] = [
+      { folio: { [Op.like]: `%${search}%` } },
+      { "$customer.name$": { [Op.like]: `%${search}%` } },
+    ];
+  }
 
-    if (dateFrom || dateTo) {
-      where.created_at = {};
-      if (dateFrom) where.created_at[Op.gte] = new Date(`${dateFrom}T00:00:00`);
-      if (dateTo) where.created_at[Op.lte] = new Date(`${dateTo}T23:59:59`);
-    }
+  const sales = await Sale.findAll({
+    where,
+    include: saleIncludes,
+    order: [["created_at", "ASC"]],
+    subQuery: false,
+  });
 
-    if (search) {
-      where[Op.or] = [
-        { folio: { [Op.like]: `%${search}%` } },
-        { "$customer.name$": { [Op.like]: `%${search}%` } },
-      ];
-    }
+  const totalIncome = sales.reduce(
+    (sum, s) => sum + parseFloat(s.amountPaid),
+    0,
+  );
+  const pendingBalance = sales.reduce(
+    (sum, s) => sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
+    0,
+  );
 
-    const sales = await Sale.findAll({
-      where,
-      include: saleIncludes,
-      order: [["created_at", "ASC"]],
-      subQuery: false,
+  const formatCurrency = (v) =>
+    new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+    }).format(v || 0);
+
+  const formatDate = (v) =>
+    new Date(v).toLocaleDateString("es-MX", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
 
-    const totalIncome = sales.reduce(
-      (sum, s) => sum + parseFloat(s.amountPaid),
-      0,
-    );
-    const pendingBalance = sales.reduce(
-      (sum, s) => sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
-      0,
-    );
+  const formatDateShort = (v) => {
+    if (!v) return "—";
+    const [year, month, day] = v.split("-");
+    return `${day}/${month}/${year}`;
+  };
 
-    const formatCurrency = (v) =>
-      new Intl.NumberFormat("es-MX", {
-        style: "currency",
-        currency: "MXN",
-      }).format(v || 0);
+  const reportTitle = marca
+    ? `Reporte de Ingresos — ${marca}`
+    : "Reporte General de Ingresos";
 
-    const formatDate = (v) =>
-      new Date(v).toLocaleDateString("es-MX", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-
+  return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       margin: 40,
       size: "A4",
       layout: "landscape",
     });
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="reporte-ingresos-${Date.now()}.pdf"`,
-    );
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
 
-    doc.pipe(res);
+    const black = "#111111";
+    const gray = "#444444";
+    const lightGray = "#e5e5e5";
 
-    // Encabezado
+    // Encabezado institucional
     doc
       .fontSize(18)
-      .fillColor("#012438")
-      .text("Skinclinic — Reporte de Ingresos", { align: "left" });
-
+      .fillColor(black)
+      .text("Depilclinik — " + reportTitle, {
+        align: "left",
+      });
     doc
       .fontSize(9)
-      .fillColor("#5b9fa6")
+      .fillColor(gray)
       .text(
-        `Marca: ${marca || "Todas"}   |   Rango: ${dateFrom || "—"} a ${
-          dateTo || "—"
-        }   |   Generado: ${new Date().toLocaleString("es-MX")}`,
+        "Clínica de Belleza y Depilación | Paseo de Las Palmas 6, Real del Prado, Durango, Dgo.",
       );
 
-    doc.moveDown(1.2);
+    doc.moveDown(0.3);
+    doc
+      .fontSize(9)
+      .fillColor(gray)
+      .text(
+        `Sucursal / Marca: Sucursal 1${marca ? ` — ${marca}` : " — Todas las marcas"}   |   Generado por: ${generatedByName || "Administrador"}`,
+      );
+    doc.text(
+      `Rango de Fechas: ${formatDateShort(dateFrom)} al ${formatDateShort(dateTo)}   |   Fecha de Emisión: ${new Date().toLocaleString("es-MX")}`,
+    );
 
-    // Tabla
+    doc.moveDown(1);
+
     const columns = [
       { label: "Folio", width: 70 },
       { label: "Fecha", width: 80 },
@@ -388,7 +403,7 @@ export const exportSalesPdf = async (req, res) => {
     const left = doc.page.margins.left;
 
     const drawHeaderRow = (y) => {
-      doc.rect(left, y, tableWidth, 20).fill("#197e88");
+      doc.rect(left, y, tableWidth, 20).fill(black);
       doc.fillColor("#ffffff").fontSize(9);
       let x = left;
       columns.forEach((col) => {
@@ -408,9 +423,9 @@ export const exportSalesPdf = async (req, res) => {
       }
 
       if (index % 2 === 0) {
-        doc.rect(left, y, tableWidth, 18).fill("#f8fafc");
+        doc.rect(left, y, tableWidth, 18).fill(lightGray);
       }
-      doc.fillColor("#012438");
+      doc.fillColor(black);
 
       const treatments =
         sale.items
@@ -439,29 +454,79 @@ export const exportSalesPdf = async (req, res) => {
       y += 18;
     });
 
-    // Resumen final
     y += 20;
-    if (y > doc.page.height - doc.page.margins.bottom - 60) {
+    if (y > doc.page.height - doc.page.margins.bottom - 80) {
       doc.addPage({ layout: "landscape" });
       y = doc.page.margins.top;
     }
 
     doc
-      .fontSize(11)
-      .fillColor("#012438")
-      .text(
-        `Total de ingresos cobrados: ${formatCurrency(totalIncome)}`,
-        left,
-        y,
-      );
+      .moveTo(left, y)
+      .lineTo(left + tableWidth, y)
+      .strokeColor(black)
+      .stroke();
+    y += 10;
+
+    doc
+      .fontSize(10)
+      .fillColor(black)
+      .text("RESUMEN FINANCIERO DEL PERIODO", left, y);
+    y += 16;
+
+    doc.fontSize(10).fillColor(black);
     doc.text(
-      `Saldos pendientes: ${formatCurrency(pendingBalance)}`,
+      `Total de ingresos cobrados: ${formatCurrency(totalIncome)} MXN`,
+      left,
+      y,
+    );
+    doc.text(
+      `Saldos pendientes: ${formatCurrency(pendingBalance)} MXN`,
       left,
       y + 16,
     );
-    doc.text(`Ventas en el rango: ${sales.length}`, left, y + 32);
+    doc.text(`Total de ventas en el rango: ${sales.length}`, left, y + 32);
+
+    y += 60;
+    doc
+      .fontSize(7.5)
+      .fillColor(gray)
+      .text(
+        "Este documento es un reporte financiero generado automáticamente por el sistema de gestión de Depilclinik (depilclinik.com).",
+        left,
+        y,
+        { width: tableWidth, align: "center" },
+      );
 
     doc.end();
+  });
+};
+
+// Genera un reporte PDF de ventas respetando los mismos filtros del historial
+export const exportSalesPdf = async (req, res) => {
+  try {
+    const { marca, search } = req.query;
+    let { dateFrom, dateTo } = req.query;
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    if (dateTo && dateTo > todayStr) {
+      dateTo = todayStr;
+    }
+
+    const buffer = await buildSalesPdfBuffer({
+      marca,
+      dateFrom,
+      dateTo,
+      search,
+      generatedByName: req.user?.name || "Administrador",
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="reporte-ingresos-${Date.now()}.pdf"`,
+    );
+    res.send(buffer);
   } catch (error) {
     console.error("Error generando PDF de ventas:", error);
     if (!res.headersSent) {
@@ -602,3 +667,5 @@ export const getCustomerPendingDebts = async (req, res) => {
     });
   }
 };
+
+export { buildSalesPdfBuffer };

@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
+import Service from "./Service.js";
 
 const SaleItem = sequelize.define(
   "SaleItem",
@@ -37,5 +38,7 @@ const SaleItem = sequelize.define(
     timestamps: false,
   },
 );
+
+SaleItem.belongsTo(Service, { foreignKey: "serviceId", as: "service" });
 
 export default SaleItem;

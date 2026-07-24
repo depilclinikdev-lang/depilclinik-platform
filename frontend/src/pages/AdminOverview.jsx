@@ -24,7 +24,7 @@ const StatCard = ({ icon: Icon, label, value, color = "#197e88" }) => (
   </div>
 );
 
-const DashboardPage = ({ userRole, onPendingSalesUpdate }) => {
+const AdminOverview = ({ userRole }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -70,14 +70,12 @@ const DashboardPage = ({ userRole, onPendingSalesUpdate }) => {
         treatmentsRes,
         performanceRes,
         upcomingRes,
-        pendingSalesRes,
       ] = await Promise.all([
         api.get("/dashboard/today-summary"),
         api.get("/sales/today-income"),
         api.get("/dashboard/top-treatments"),
         api.get("/dashboard/collaborator-performance"),
         api.get("/dashboard/upcoming-appointments"),
-        api.get("/sales/pending-accounts"),
       ]);
 
       setTodaySummary(summaryRes.data);
@@ -85,10 +83,6 @@ const DashboardPage = ({ userRole, onPendingSalesUpdate }) => {
       setTopTreatments(treatmentsRes.data);
       setPerformance(performanceRes.data);
       setUpcoming(upcomingRes.data);
-
-      if (onPendingSalesUpdate) {
-        onPendingSalesUpdate(pendingSalesRes.data || []);
-      }
 
       setError("");
     } catch (err) {
@@ -269,4 +263,4 @@ const DashboardPage = ({ userRole, onPendingSalesUpdate }) => {
   );
 };
 
-export default DashboardPage;
+export default AdminOverview;

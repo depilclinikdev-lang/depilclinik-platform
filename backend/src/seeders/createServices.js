@@ -2,6 +2,13 @@ import sequelize from "../config/db.js";
 import Service from "../models/Service.js";
 import ServiceInclusion from "../models/ServiceInclusion.js";
 
+if (process.env.NODE_ENV === "production") {
+  console.error(
+    "Los seeders no pueden ejecutarse en producción (NODE_ENV=production).",
+  );
+  process.exit(1);
+}
+
 const run = async () => {
   try {
     await sequelize.authenticate();
