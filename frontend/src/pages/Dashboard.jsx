@@ -28,6 +28,7 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
   const [pendingSales, setPendingSales] = useState([]);
   const [assignedAppointments, setAssignedAppointments] = useState([]);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const fetchPendingAccounts = useCallback(async () => {
     if (user?.role !== "Administrador") return;
@@ -156,6 +157,8 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
         onLogout={onLogout}
         userRole={user?.role}
         userName={user?.name}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -168,6 +171,7 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
             user?.role !== "Administrador" ? assignedAppointments : []
           }
           onSelectAppointment={handleSelectAppointmentFromBell}
+          onMenuClick={() => setIsMobileMenuOpen(true)}
         />
         <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
           {renderContent()}

@@ -5,6 +5,7 @@ import {
   LuCalendar,
   LuChevronRight,
   LuCheckCheck,
+  LuMenu,
 } from "react-icons/lu";
 
 const Navbar = ({
@@ -14,6 +15,7 @@ const Navbar = ({
   pendingSales = [],
   assignedAppointments = [],
   onSelectAppointment,
+  onMenuClick,
 }) => {
   const isDashboard = !pageTitle;
   const roleUpper = (userRole || "").toUpperCase();
@@ -88,14 +90,22 @@ const Navbar = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex flex-row justify-between items-center px-6 py-5 bg-linear-to-r from-[#cbe4e6] via-[#e2eff1] to-[#f7d2e3] border-b border-gray-300 gap-4 w-full">
-      <div className="text-left">
+    <header className="sticky top-0 z-30 flex flex-row justify-between items-center px-4 sm:px-6 py-4 sm:py-5 bg-linear-to-r from-[#cbe4e6] via-[#e2eff1] to-[#f7d2e3] border-b border-gray-300 gap-4 w-full">
+      <div className="flex items-center gap-3 text-left min-w-0">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="sm:hidden p-2 -ml-1 rounded-lg text-primary hover:bg-white/60 transition-colors cursor-pointer shrink-0"
+          aria-label="Abrir menú"
+        >
+          <LuMenu size={22} />
+        </button>
         {isDashboard ? (
-          <span className="text-2xl font-black tracking-wider text-primary font-heading leading-none flex items-center gap-1.5">
+          <span className="text-xl sm:text-2xl font-black tracking-wider text-primary font-heading leading-none flex items-center gap-1.5 truncate">
             DEPILCLINIK
           </span>
         ) : (
-          <h2 className="text-2xl font-bold text-primary font-heading leading-none">
+          <h2 className="text-xl sm:text-2xl font-bold text-primary font-heading leading-none truncate">
             {pageTitle}
           </h2>
         )}
