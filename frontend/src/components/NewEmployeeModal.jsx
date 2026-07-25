@@ -129,9 +129,9 @@ const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white w-full max-w-[650px] max-h-[90vh] rounded-2xl p-6 shadow-2xl overflow-y-auto custom-scrollbar">
+      <div className="bg-white w-full max-w-[650px] max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-left">
         {generatedPassword ? (
-          <div className="flex flex-col items-center py-6 text-center">
+          <div className="flex flex-col items-center py-6 text-center p-6">
             <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-4">
               <LuUserPlus size={32} />
             </div>
@@ -170,36 +170,33 @@ const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
           </div>
         ) : (
           <>
-            <div className="flex justify-between items-center mb-1">
-              <h2 className="text-xl font-bold text-primary m-0">
-                {isEditMode
-                  ? "Editar Colaborador"
-                  : "Registrar Nuevo Colaborador"}
-              </h2>
+            <div className="p-6 pb-4 border-b border-gray-100 bg-gray-50/70 flex justify-between items-start gap-3 shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-primary m-0">
+                  {isEditMode
+                    ? "Editar Colaborador"
+                    : "Registrar Nuevo Colaborador"}
+                </h2>
+              </div>
               <button
                 onClick={handleCloseAndReset}
-                className="text-accent hover:text-secondary transition-colors cursor-pointer"
+                className="text-accent hover:text-primary transition-colors cursor-pointer shrink-0"
               >
                 <LuX size={22} />
               </button>
             </div>
 
-            <p className="text-xs text-accent text-left mb-4">
-              {isEditMode
-                ? "Actualiza el expediente del colaborador."
-                : "Completa el expediente del colaborador. Se generará un acceso temporal de forma automática."}
-            </p>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 text-left font-medium mb-2">
-                {error}
-              </div>
-            )}
-
             <form
+              id="employeeForm"
               onSubmit={handleSubmit}
-              className="flex flex-col gap-4 text-left"
+              className="flex flex-col gap-4 text-left p-6 overflow-y-auto flex-1 custom-scrollbar"
             >
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 text-left font-medium">
+                  {error}
+                </div>
+              )}
+
               <h3 className="text-sm font-semibold text-secondary border-b border-blue-100 pb-1 mt-1">
                 Datos Personales
               </h3>
@@ -376,31 +373,32 @@ const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
                   />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-3 mt-3">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleCloseAndReset}
-                  className="px-5 py-2 rounded-full border border-borderClinik text-xs font-semibold text-primary hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2 rounded-full bg-secondary text-xs font-semibold text-white hover:bg-[#14676f] transition-colors cursor-pointer shadow-sm disabled:opacity-50 flex items-center gap-1"
-                >
-                  {loading
-                    ? isEditMode
-                      ? "Guardando..."
-                      : "Registrando..."
-                    : isEditMode
-                      ? "Guardar Cambios"
-                      : "Enviar Invitación"}
-                </button>
-              </div>
             </form>
+
+            <div className="border-t border-gray-100 bg-gray-50/70 p-4 flex justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleCloseAndReset}
+                className="px-5 py-2 rounded-full border border-borderClinik text-xs font-semibold text-primary hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                form="employeeForm"
+                disabled={loading}
+                className="px-5 py-2 rounded-full bg-secondary text-xs font-semibold text-white hover:bg-[#14676f] transition-colors cursor-pointer shadow-sm disabled:opacity-50 flex items-center gap-1"
+              >
+                {loading
+                  ? isEditMode
+                    ? "Guardando..."
+                    : "Registrando..."
+                  : isEditMode
+                    ? "Guardar Cambios"
+                    : "Enviar Invitación"}
+              </button>
+            </div>
           </>
         )}
       </div>

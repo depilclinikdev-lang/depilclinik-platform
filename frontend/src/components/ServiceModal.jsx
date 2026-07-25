@@ -8,7 +8,6 @@ import {
   showError,
 } from "../utils/alerts";
 
-// Colores de marca unificados con la vista principal para sincronía total
 const BRAND_COLORS = {
   "Modelha DK": "#197e88",
   Depilclinik: "#c026d3",
@@ -32,7 +31,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Determinar dinámicamente el color corporativo actual según la selección en el formulario
   const currentBrandColor = BRAND_COLORS[formData.brand] || "#197e88";
 
   useEffect(() => {
@@ -123,23 +121,18 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col text-left">
-        {/* Cabecera del Modal Dinámica (Cambio en seco sin transición intermedia) */}
-        <div
-          className="p-6 flex justify-between items-center shrink-0"
-          style={{ backgroundColor: currentBrandColor }}
-        >
-          <h2 className="text-lg font-bold text-white uppercase tracking-wide">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70 shrink-0">
+          <h2 className="text-lg font-bold text-primary">
             {isEditMode ? "Editar Servicio" : "Nuevo Servicio"}
           </h2>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors text-sm font-bold cursor-pointer"
+            className="text-accent hover:text-primary transition-colors text-sm font-bold cursor-pointer"
           >
             <LuX size={22} />
           </button>
         </div>
 
-        {/* Cuerpo del Formulario con scroll independiente */}
         <form
           id="serviceForm"
           onSubmit={handleSubmit}
@@ -151,7 +144,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             </p>
           )}
 
-          {/* Selección de Marca Restaurada a Botones Originales */}
           <div>
             <label className="block text-xs font-bold text-primary uppercase mb-1">
               Marca *
@@ -187,7 +179,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             </div>
           </div>
 
-          {/* Nombre del Servicio */}
           <div>
             <label className="block text-xs font-bold text-primary uppercase mb-1">
               Nombre del Servicio *
@@ -205,7 +196,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             />
           </div>
 
-          {/* Descripción */}
           <div>
             <label className="block text-xs font-bold text-primary uppercase mb-1">
               Descripción
@@ -221,7 +211,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             />
           </div>
 
-          {/* Sección de Precios (Alineación y Label corregidos) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-primary uppercase mb-1">
@@ -264,7 +253,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             </div>
           </div>
 
-          {/* Frecuencia Sugerida */}
           <div>
             <label className="block text-xs font-bold text-primary uppercase mb-1">
               Frecuencia Sugerida
@@ -281,7 +269,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             />
           </div>
 
-          {/* Valoración Médica */}
           <label className="flex items-center gap-2 text-sm font-semibold text-primary cursor-pointer select-none">
             <input
               type="checkbox"
@@ -294,7 +281,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             Requiere valoración médica previa
           </label>
 
-          {/* Inclusiones */}
           <div className="border-t border-gray-100 pt-4">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-primary uppercase">
@@ -341,7 +327,6 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
           </div>
         </form>
 
-        {/* Barra de Acciones Estática Fija en la Base */}
         <div className="border-t border-gray-100 flex justify-end gap-2 bg-gray-50/70 p-4 shrink-0 w-full">
           <button
             type="button"
@@ -355,8 +340,7 @@ const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
             type="submit"
             form="serviceForm"
             disabled={loading}
-            className="px-5 py-2.5 rounded-full text-white font-bold text-xs transition-colors cursor-pointer shadow-md disabled:opacity-50 hover:brightness-95"
-            style={{ backgroundColor: currentBrandColor }}
+            className="px-5 py-2.5 rounded-full bg-secondary text-white font-bold text-xs hover:bg-[#14676f] transition-colors cursor-pointer shadow-md disabled:opacity-50"
           >
             {loading
               ? "Guardando..."
