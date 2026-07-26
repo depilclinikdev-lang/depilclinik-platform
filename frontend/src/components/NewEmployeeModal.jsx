@@ -129,7 +129,7 @@ const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white w-full max-w-[650px] max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-left">
+      <div className="bg-white w-full max-w-162.5 max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-left">
         {generatedPassword ? (
           <div className="flex flex-col items-center py-6 text-center p-6">
             <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-4">
