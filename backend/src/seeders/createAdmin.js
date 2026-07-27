@@ -13,7 +13,7 @@ const run = async () => {
     await sequelize.authenticate();
 
     const existingAdmin = await User.findOne({
-      where: { email: "brian@skinclinic.com" },
+      where: { email: "depilclinik.dev@gmail.com" },
     });
     if (existingAdmin) {
       console.log("Ya existe un usuario con ese correo, no se crea de nuevo.");
@@ -22,8 +22,8 @@ const run = async () => {
 
     await User.create({
       name: "Brian Gonzalez Ramirez",
-      phone: "6181234567",
-      email: "brian@skinclinic.com",
+      phone: "6695054567",
+      email: "depilclinik.dev@gmail.com",
       password: "Temporal123",
       gender: "H",
       role: "Administrador",
@@ -32,7 +32,7 @@ const run = async () => {
     });
 
     console.log("Administrador inicial creado con éxito.");
-    console.log("Correo: brian@skinclinic.com");
+    console.log("Correo: depilclinik.dev@gmail.com");
     console.log("Contraseña temporal: Temporal123");
     process.exit(0);
   } catch (error) {
