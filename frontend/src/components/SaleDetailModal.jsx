@@ -191,7 +191,7 @@ const SaleDetailModal = ({ isOpen, sale, onClose, onPaymentSuccess }) => {
                 <button
                   type="button"
                   onClick={() => setShowAddPayment(true)}
-                  className="flex items-center gap-1 text-xs font-bold text-secondary hover:underline cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm"
                 >
                   <LuPlus size={14} /> Registrar Abono
                 </button>

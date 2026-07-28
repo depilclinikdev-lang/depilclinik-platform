@@ -4,6 +4,8 @@ import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
 import User from "../models/User.js";
 import Sale from "../models/Sale.js";
+import MedicalAssessment from "../models/MedicalAssessment.js";
+import LaserMedicalAssessment from "../models/LaserMedicalAssessment.js";
 
 const appointmentIncludes = [
   {
@@ -14,6 +16,18 @@ const appointmentIncludes = [
   { model: Service, as: "service", attributes: ["serviceId", "name", "brand"] },
   { model: User, as: "collaborator", attributes: ["id", "name"] },
   { model: Sale, as: "sale", attributes: ["saleId", "folio", "status"] },
+  {
+    model: MedicalAssessment,
+    as: "medicalAssessment",
+    attributes: ["assessmentId"],
+    required: false,
+  },
+  {
+    model: LaserMedicalAssessment,
+    as: "laserAssessment",
+    attributes: ["laserAssessmentId"],
+    required: false,
+  },
 ];
 
 const conflictIncludes = [

@@ -123,12 +123,11 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
         });
         return;
       }
-      if (isAdmin) {
-        setEditingAppointment(event.resource);
-        setIsModalOpen(true);
-      } else {
-        setViewingAppointment(event.resource);
-      }
+      // Tanto Administrador como Colaborador ven el mismo detalle de la
+      // cita. Desde ahí cada uno tiene las acciones que le correspondan
+      // (el admin también puede editar o atender/llenar el expediente
+      // en lugar del colaborador asignado, si este no pudo asistir).
+      setViewingAppointment(event.resource);
     },
     [isAdmin],
   );
@@ -217,11 +216,16 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
         isOpen={Boolean(viewingAppointment)}
         appointment={viewingAppointment}
         onClose={() => setViewingAppointment(null)}
-        onAttend={
-          !isAdmin
-            ? (appointmentId) => {
+        onAttend={(appointmentId) => {
+          setViewingAppointment(null);
+          onAttendAppointment(appointmentId);
+        }}
+        onEdit={
+          isAdmin
+            ? (appointment) => {
                 setViewingAppointment(null);
-                onAttendAppointment(appointmentId);
+                setEditingAppointment(appointment);
+                setIsModalOpen(true);
               }
             : undefined
         }

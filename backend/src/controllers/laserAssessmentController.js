@@ -106,6 +106,22 @@ export const createLaserAssessment = async (req, res) => {
 
   try {
     const appointment = req.appointment;
+
+    // Evita duplicar el expediente si la cita ya tiene uno registrado
+    // (por ejemplo, si la administradora atiende una cita que el
+    // colaborador ya había llenado, o si se reintenta el envío).
+    const existingForAppointment = await LaserMedicalAssessment.findOne({
+      where: { appointmentId: appointment.appointmentId },
+      transaction: t,
+    });
+
+    if (existingForAppointment) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "Esta cita ya tiene un expediente clínico registrado",
+      });
+    }
+
     const sanitizedBody = sanitizeEmptyStrings(req.body);
     const { general, areasOfInterest, clinicalConditions } = sanitizedBody;
 
@@ -123,8 +139,11 @@ export const createLaserAssessment = async (req, res) => {
         customerId: appointment.customerId,
         appointmentId: appointment.appointmentId,
         ...general,
-        filledByUserId: isCollaborator ? req.user.id : null,
-        filledAt: isCollaborator ? new Date() : null,
+        // Se registra siempre quién llenó el expediente (colaborador o
+        // administrador), para dejar trazabilidad de quién atendió la
+        // sesión aunque no sea el colaborador originalmente asignado.
+        filledByUserId: req.user.id,
+        filledAt: new Date(),
         lockedForCollaborator: isCollaborator,
       },
       { transaction: t },

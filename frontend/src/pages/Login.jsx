@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
+import { LuEye, LuEyeOff } from "react-icons/lu";
 import {
   showLoading,
   closeAlert,
@@ -11,6 +12,7 @@ const LoginSPA = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [user, setUser] = useState(null);
 
@@ -18,6 +20,8 @@ const LoginSPA = ({ onLoginSuccess }) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passError, setPassError] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -162,15 +166,34 @@ const LoginSPA = ({ onLoginSuccess }) => {
                     >
                       Nueva Contraseña
                     </label>
-                    <input
-                      id="newPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      className="w-full p-2.5 rounded-lg border border-borderClinik text-sm focus:outline-none focus:border-secondary"
-                    />
+                    <div className="relative">
+                      <input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        className="w-full p-2.5 pr-10 rounded-lg border border-borderClinik text-sm focus:outline-none focus:border-secondary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-accent hover:text-secondary transition-colors cursor-pointer"
+                        aria-label={
+                          showNewPassword
+                            ? "Ocultar contraseña"
+                            : "Mostrar contraseña"
+                        }
+                      >
+                        {showNewPassword ? (
+                          <LuEyeOff size={18} />
+                        ) : (
+                          <LuEye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex flex-col gap-1">
@@ -180,15 +203,34 @@ const LoginSPA = ({ onLoginSuccess }) => {
                     >
                       Confirmar Contraseña
                     </label>
-                    <input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="w-full p-2.5 rounded-lg border border-borderClinik text-sm focus:outline-none focus:border-secondary"
-                    />
+                    <div className="relative">
+                      <input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="w-full p-2.5 pr-10 rounded-lg border border-borderClinik text-sm focus:outline-none focus:border-secondary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-accent hover:text-secondary transition-colors cursor-pointer"
+                        aria-label={
+                          showConfirmPassword
+                            ? "Ocultar contraseña"
+                            : "Mostrar contraseña"
+                        }
+                      >
+                        {showConfirmPassword ? (
+                          <LuEyeOff size={18} />
+                        ) : (
+                          <LuEye size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -270,15 +312,32 @@ const LoginSPA = ({ onLoginSuccess }) => {
                       />
                     </svg>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="Password"
                       aria-label="Contraseña"
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full bg-transparent text-sm text-primary focus:outline-none placeholder-accent/70"
+                      className="w-full bg-transparent text-sm text-primary focus:outline-none placeholder-accent/70 pr-6"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      tabIndex={-1}
+                      className="text-accent hover:text-secondary transition-colors cursor-pointer shrink-0"
+                      aria-label={
+                        showPassword
+                          ? "Ocultar contraseña"
+                          : "Mostrar contraseña"
+                      }
+                    >
+                      {showPassword ? (
+                        <LuEyeOff size={18} />
+                      ) : (
+                        <LuEye size={18} />
+                      )}
+                    </button>
                   </div>
 
                   <div className="relative z-20 flex items-center justify-between text-xs mt-2">
