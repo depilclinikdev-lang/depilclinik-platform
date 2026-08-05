@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   // Use relative path so Vite dev server proxy handles /api and cookies are same-origin
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: import.meta.env.VITE_API_URL || "https://api.depilclinik.com",
   withCredentials: true,
 });
 
