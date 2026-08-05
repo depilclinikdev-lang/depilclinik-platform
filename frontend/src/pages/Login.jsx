@@ -159,6 +159,7 @@ const LoginSPA = ({ onLoginSuccess }) => {
                   onSubmit={handlePasswordChangeSubmit}
                   className="flex flex-col gap-6"
                 >
+                  <input type="hidden" autoComplete="username" value={email} />
                   <div className="flex flex-col gap-1">
                     <label
                       htmlFor="newPassword"
