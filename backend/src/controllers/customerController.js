@@ -16,7 +16,13 @@ export const createCustomer = async (req, res) => {
       medicalInsuranceNumber,
     } = req.body;
 
-    const phoneExists = await Customer.findOne({ where: { phone } });
+    const phoneExists = await Customer.findOne({
+      where: {
+        phone,
+        isActive: true, // <-- FILTRAR SOLO ACTIVOS
+      },
+    });
+
     if (phoneExists) {
       return res
         .status(400)
@@ -24,7 +30,12 @@ export const createCustomer = async (req, res) => {
     }
 
     if (email) {
-      const emailExists = await Customer.findOne({ where: { email } });
+      const emailExists = await Customer.findOne({
+        where: {
+          email,
+          isActive: true, // <-- FILTRAR SOLO ACTIVOS
+        },
+      });
       if (emailExists) {
         return res
           .status(400)
