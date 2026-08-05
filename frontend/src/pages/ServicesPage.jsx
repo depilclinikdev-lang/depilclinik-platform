@@ -6,6 +6,7 @@ import {
   LuCalendarClock,
   LuClipboardCheck,
   LuCheck,
+  LuSearch,
 } from "react-icons/lu";
 import ServiceModal from "../components/ServiceModal";
 import {
@@ -25,6 +26,7 @@ const ServicesPage = ({ currentUserRole }) => {
   const isAdmin = currentUserRole === "Administrador";
   const [services, setServices] = useState([]);
   const [brandFilter, setBrandFilter] = useState("Modelha DK");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,8 +97,9 @@ const ServicesPage = ({ currentUserRole }) => {
       currency: "MXN",
     }).format(value);
 
-  // Filtrado directo de la marca elegida
-  const filteredServices = services.filter((s) => s.brand === brandFilter);
+  const filteredServices = services
+    .filter((s) => s.brand === brandFilter)
+    .filter((s) => s.name.toLowerCase().includes(search.trim().toLowerCase()));
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
@@ -146,6 +149,20 @@ const ServicesPage = ({ currentUserRole }) => {
             <LuPlus size={14} /> Nuevo Servicio
           </button>
         )}
+      </div>
+
+      <div className="relative max-w-md w-full">
+        <LuSearch
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary"
+        />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar servicio..."
+          className="w-full pl-10 pr-4 py-3 rounded-full border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+        />
       </div>
 
       {loading ? (
