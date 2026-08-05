@@ -54,6 +54,7 @@ const Sidebar = ({
       hasChildren: true,
       children: [
         { id: "historial-expedientes", label: "Historial de Expedientes" },
+        { id: "paquetes", label: "Paquetes de Sesiones" },
       ],
     },
     {

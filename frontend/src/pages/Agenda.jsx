@@ -83,12 +83,13 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
       .filter((appt) => appt.startTime && appt.endTime)
       .map((appt) => ({
         id: appt.appointmentId,
-        title: `${appt.status === "Completada" && !appt.sale ? "💲 " : ""}${appt.customer?.name || "Cliente"} · ${appt.service?.name || ""}`,
+        title: `${appt.status === "Completada" && !appt.sale && !appt.packageSession ? "💲 " : ""}${appt.customer?.name || "Cliente"} · ${appt.service?.name || ""}`,
         start: new Date(appt.startTime),
         end: new Date(appt.endTime),
         marca: appt.marca,
         status: appt.status,
-        needsCheckout: appt.status === "Completada" && !appt.sale,
+        needsCheckout:
+          appt.status === "Completada" && !appt.sale && !appt.packageSession,
         resource: appt,
       }));
   }, [appointments]);

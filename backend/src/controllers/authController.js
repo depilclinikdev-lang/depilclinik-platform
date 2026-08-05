@@ -22,7 +22,10 @@ export const register = async (req, res) => {
       medicalInsuranceNumber,
     } = req.body;
 
-    const userExists = await User.findOne({ where: { email } });
+    const normalizedEmail = email?.trim().toLowerCase();
+    const userExists = await User.findOne({
+      where: { email: normalizedEmail },
+    });
     if (userExists) {
       return res.status(400).json({ message: "Email already registered" });
     }
@@ -31,7 +34,7 @@ export const register = async (req, res) => {
 
     const newUser = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: temporaryPassword,
       phone,
       gender,
@@ -67,8 +70,9 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: normalizedEmail } });
     if (!user || user.isActive === false) {
       return res
         .status(401)

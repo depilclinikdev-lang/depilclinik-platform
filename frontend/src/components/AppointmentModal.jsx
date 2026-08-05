@@ -289,7 +289,7 @@ const AppointmentModal = ({ isOpen, onClose, onRefresh, appointment }) => {
           };
         }
 
-        if (isNowCompleting) {
+        if (isNowCompleting && !appointment?.packageSession) {
           closeAlert();
           setPendingCheckoutData({
             appointmentId: appointment.appointmentId,

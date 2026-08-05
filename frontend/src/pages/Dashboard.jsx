@@ -5,6 +5,7 @@ import Navbar from "../components/Navbar";
 import SaleDetailModal from "../components/SaleDetailModal";
 import Employees from "./Employees";
 import CustomersPage from "./CustomersPage";
+import PackagesPage from "./PackagesPage";
 import Agenda from "./Agenda";
 import ServicesPage from "./ServicesPage";
 import AssessmentHistoryPage from "./AssessmentHistoryPage";
@@ -17,6 +18,7 @@ const PAGE_TITLES = {
   empleados: "Gestión de Colaboradores",
   clientes: "Directorio de Clientes",
   "historial-expedientes": "Historial de Expedientes",
+  paquetes: "Paquetes de Sesiones",
   agenda: "Agenda",
   servicios: "Catálogo de Servicios",
   ingresos: "Ingresos",
@@ -108,6 +110,16 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
           );
         }
         return <AssessmentHistoryPage />;
+
+      case "paquetes":
+        if (user?.role !== "Administrador") {
+          return (
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+              No tienes permisos para acceder a esta sección.
+            </div>
+          );
+        }
+        return <PackagesPage />;
 
       case "agenda":
         return (

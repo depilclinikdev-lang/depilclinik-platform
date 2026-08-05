@@ -29,7 +29,10 @@ const LoginSPA = ({ onLoginSuccess }) => {
     showLoading("Verificando credenciales...");
 
     try {
-      const response = await api.post("/auth/login", { email, password });
+      const response = await api.post("/auth/login", {
+        email: email.trim().toLowerCase(),
+        password,
+      });
       const loggedUser = response.data.user;
       setUser(loggedUser);
       closeAlert();

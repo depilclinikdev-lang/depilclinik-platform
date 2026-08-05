@@ -80,6 +80,7 @@ const IngresosPage = () => {
 
   const [sales, setSales] = useState([]);
   const [pendingSales, setPendingSales] = useState([]);
+  const [pendingPackages, setPendingPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -154,7 +155,8 @@ const IngresosPage = () => {
           search: search || undefined,
         },
       });
-      setPendingSales(response.data);
+      setPendingSales(response.data.pendingSales || []);
+      setPendingPackages(response.data.pendingPackages || []);
       setError("");
     } catch (err) {
       setError("No se pudieron cargar las cuentas por cobrar.");
@@ -421,7 +423,7 @@ const IngresosPage = () => {
             {error}
           </p>
         ) : activeTab === "cuentasPorCobrar" ? (
-          pendingSales.length === 0 ? (
+          pendingSales.length === 0 && pendingPackages.length === 0 ? (
             <p className="text-accent text-center font-medium p-8 text-sm">
               ¡Excelente! No hay clientes con saldos pendientes por cobrar.
             </p>
@@ -431,7 +433,10 @@ const IngresosPage = () => {
                 <thead>
                   <tr className="border-b border-amber-100 bg-amber-50/50">
                     <th className="p-4 text-xs font-bold text-amber-900">
-                      Folio
+                      Tipo
+                    </th>
+                    <th className="p-4 text-xs font-bold text-amber-900">
+                      Folio / Paquete
                     </th>
                     <th className="p-4 text-xs font-bold text-amber-900">
                       Fecha
@@ -440,7 +445,10 @@ const IngresosPage = () => {
                       Cliente
                     </th>
                     <th className="p-4 text-xs font-bold text-amber-900">
-                      Total Venta
+                      Servicio
+                    </th>
+                    <th className="p-4 text-xs font-bold text-amber-900">
+                      Total
                     </th>
                     <th className="p-4 text-xs font-bold text-amber-900">
                       Abonado
@@ -460,9 +468,12 @@ const IngresosPage = () => {
                       parseFloat(sale.amountPaid);
                     return (
                       <tr
-                        key={sale.saleId}
+                        key={`sale-${sale.saleId}`}
                         className="hover:bg-amber-50/40 transition-colors"
                       >
+                        <td className="p-4 text-sm font-semibold text-primary">
+                          Venta
+                        </td>
                         <td className="p-4 text-sm font-semibold text-primary">
                           {sale.folio}
                         </td>
@@ -474,6 +485,12 @@ const IngresosPage = () => {
                           <p className="text-xs text-accent">
                             {sale.customer?.phone}
                           </p>
+                        </td>
+                        <td className="p-4 text-sm text-gray-600 max-w-50 truncate">
+                          {sale.items
+                            ?.map((i) => i.service?.name)
+                            .filter(Boolean)
+                            .join(", ") || "—"}
                         </td>
                         <td className="p-4 text-sm font-bold text-primary">
                           {formatCurrency(sale.totalAmount)}
@@ -492,6 +509,47 @@ const IngresosPage = () => {
                           >
                             Abonar
                           </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {pendingPackages.map((pkg) => {
+                    const balance =
+                      parseFloat(pkg.totalPrice) - parseFloat(pkg.amountPaid);
+                    return (
+                      <tr
+                        key={`package-${pkg.packageId}`}
+                        className="hover:bg-amber-50/40 transition-colors"
+                      >
+                        <td className="p-4 text-sm font-semibold text-primary">
+                          Paquete
+                        </td>
+                        <td className="p-4 text-sm font-semibold text-primary">
+                          PKG{pkg.packageId}
+                        </td>
+                        <td className="p-4 text-sm text-gray-600">
+                          {formatDate(pkg.createdAt || pkg.created_at)}
+                        </td>
+                        <td className="p-4 text-sm text-primary font-medium">
+                          {pkg.customer?.name || "—"}
+                          <p className="text-xs text-accent">
+                            {pkg.customer?.phone}
+                          </p>
+                        </td>
+                        <td className="p-4 text-sm text-gray-600 max-w-50 truncate">
+                          {pkg.service?.name || "—"}
+                        </td>
+                        <td className="p-4 text-sm font-bold text-primary">
+                          {formatCurrency(pkg.totalPrice)}
+                        </td>
+                        <td className="p-4 text-sm font-bold text-emerald-600">
+                          {formatCurrency(pkg.amountPaid)}
+                        </td>
+                        <td className="p-4 text-sm font-bold text-red-600">
+                          {formatCurrency(balance)}
+                        </td>
+                        <td className="p-4 text-right text-xs text-gray-500">
+                          —
                         </td>
                       </tr>
                     );

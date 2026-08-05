@@ -562,3 +562,45 @@ CREATE TABLE Whatsapp_Notifications (
         REFERENCES Appointments(appointment_id) ON DELETE CASCADE,
     UNIQUE KEY uq_whatsapp_appointment (appointment_id)
 );
+
+CREATE TABLE Customer_Packages (
+    package_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    service_id INT NOT NULL,
+    marca ENUM('Modelha DK', 'Depilclinik') NOT NULL,
+    total_sessions INT NOT NULL,
+    sessions_completed INT NOT NULL DEFAULT 0,
+    total_price DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
+    payment_status ENUM('Pagado', 'Con adeudo') NOT NULL DEFAULT 'Con adeudo',
+    status ENUM('Activo', 'Completado', 'Cancelado') NOT NULL DEFAULT 'Activo',
+    notes TEXT NULL,
+    sold_by_user_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_packages_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_packages_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_packages_sold_by FOREIGN KEY (sold_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE Package_Payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    package_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method ENUM('Efectivo', 'Tarjeta', 'Transferencia') NOT NULL,
+    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    registered_by_user_id INT NULL,
+    CONSTRAINT fk_pkg_payments_package FOREIGN KEY (package_id) REFERENCES Customer_Packages(package_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pkg_payments_user FOREIGN KEY (registered_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE Package_Sessions (
+    package_session_id INT AUTO_INCREMENT PRIMARY KEY,
+    package_id INT NOT NULL,
+    session_number INT NOT NULL,
+    appointment_id INT NULL,
+    status ENUM('Pendiente', 'Agendada', 'Completada', 'Cancelada') NOT NULL DEFAULT 'Pendiente',
+    completed_at TIMESTAMP NULL,
+    CONSTRAINT fk_pkgsessions_package FOREIGN KEY (package_id) REFERENCES Customer_Packages(package_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pkgsessions_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
+    UNIQUE KEY uq_package_session_number (package_id, session_number)
+);

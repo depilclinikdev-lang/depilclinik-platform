@@ -24,6 +24,7 @@ import whatsappRoutes from "./src/routes/whatsappRoutes.js";
 import "./src/workers/whatsappWorker.js"; // arranca el worker al importar
 import { startWhatsappScheduler } from "./src/jobs/scheduleWhatsappReminders.js";
 import { startMonthlyIncomeBackup } from "./src/jobs/scheduleMonthlyIncomeBackup.js";
+import packageRoutes from "./src/routes/packageRoutes.js";
 
 dotenv.config();
 
@@ -60,6 +61,8 @@ app.use("/api/assessment-photos", assessmentPhotoRoutes);
 app.use("/api/sales", saleRoutes);
 
 app.use("/api/whatsapp", whatsappRoutes);
+
+app.use("/api/packages", packageRoutes);
 
 const PORT = process.env.PORT || 5000;
 

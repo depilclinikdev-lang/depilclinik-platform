@@ -3,6 +3,8 @@ import sequelize from "../config/db.js";
 import Sale from "../models/Sale.js";
 import SaleItem from "../models/SaleItem.js";
 import SalePayment from "../models/SalePayment.js";
+import CustomerPackage from "../models/CustomerPackage.js";
+import PackagePayment from "../models/PackagePayment.js";
 import Appointment from "../models/Appointment.js";
 import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
@@ -564,14 +566,22 @@ export const getTodayIncome = async (req, res) => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const result = await Sale.sum("amountPaid", {
+    const salesIncome = await Sale.sum("amountPaid", {
       where: {
         created_at: { [Op.between]: [startOfDay, endOfDay] },
         status: { [Op.ne]: "Cancelada" },
       },
     });
 
-    res.status(200).json({ totalIncome: result || 0 });
+    const packageIncome = await PackagePayment.sum("amount", {
+      where: {
+        paid_at: { [Op.between]: [startOfDay, endOfDay] },
+      },
+    });
+
+    res.status(200).json({
+      totalIncome: (salesIncome || 0) + (packageIncome || 0),
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server error while fetching today's income",
@@ -592,28 +602,70 @@ export const getMonthlySummary = async (req, res) => {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-    const where = {
+    const saleWhere = {
       created_at: { [Op.between]: [startDate, endDate] },
     };
-    if (marca) where.marca = marca;
+    if (marca) saleWhere.marca = marca;
 
-    const sales = await Sale.findAll({ where });
+    const sales = await Sale.findAll({ where: saleWhere });
 
-    const totalIncome = sales.reduce(
-      (sum, s) => sum + parseFloat(s.amountPaid),
-      0,
-    );
-    const pendingBalance = sales.reduce(
-      (sum, s) => sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
-      0,
-    );
-    const completedSales = sales.filter((s) => s.status === "Liquidada").length;
+    const packageIncome = await PackagePayment.sum("amount", {
+      where: {
+        paid_at: { [Op.between]: [startDate, endDate] },
+      },
+    });
+
+    const packageWhere = {
+      paymentStatus: "Con adeudo",
+      status: { [Op.ne]: "Cancelado" },
+    };
+    if (marca) packageWhere.marca = marca;
+
+    const packagesWithDebt = await CustomerPackage.findAll({
+      where: packageWhere,
+    });
+
+    const packageTotalWhere = {
+      status: { [Op.ne]: "Cancelado" },
+      created_at: { [Op.between]: [startDate, endDate] },
+    };
+    if (marca) packageTotalWhere.marca = marca;
+
+    const totalPackageCount = await CustomerPackage.count({
+      where: packageTotalWhere,
+    });
+
+    const completedPackageCount = await CustomerPackage.count({
+      where: {
+        paymentStatus: "Pagado",
+        status: { [Op.ne]: "Cancelado" },
+        created_at: { [Op.between]: [startDate, endDate] },
+        ...(marca ? { marca } : {}),
+      },
+    });
+
+    const totalIncome =
+      sales.reduce((sum, s) => sum + parseFloat(s.amountPaid), 0) +
+      (packageIncome || 0);
+    const pendingBalance =
+      sales.reduce(
+        (sum, s) =>
+          sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
+        0,
+      ) +
+      packagesWithDebt.reduce(
+        (sum, p) => sum + (parseFloat(p.totalPrice) - parseFloat(p.amountPaid)),
+        0,
+      );
+    const completedSales =
+      sales.filter((s) => s.status === "Liquidada").length +
+      completedPackageCount;
 
     res.status(200).json({
       totalIncome,
       pendingBalance,
       completedSales,
-      totalSales: sales.length,
+      totalSales: sales.length + totalPackageCount,
     });
   } catch (error) {
     res.status(500).json({
@@ -627,17 +679,55 @@ export const getMonthlySummary = async (req, res) => {
 export const getPendingAccounts = async (req, res) => {
   try {
     const { search, marca } = req.query;
-    const where = { status: "Con adeudo" };
+    const saleWhere = { status: "Con adeudo" };
 
-    if (marca) where.marca = marca;
+    if (marca) saleWhere.marca = marca;
+    if (search) {
+      saleWhere[Op.or] = [
+        { folio: { [Op.like]: `%${search}%` } },
+        { "$customer.name$": { [Op.like]: `%${search}%` } },
+      ];
+    }
 
     const pendingSales = await Sale.findAll({
-      where,
-      include: saleIncludes, // Incluye Customer, User, Items, Payments
-      order: [["created_at", "ASC"]], // Las deudas más antiguas primero
+      where: saleWhere,
+      include: saleIncludes,
+      order: [["created_at", "ASC"]],
+      subQuery: false,
+      distinct: true,
     });
 
-    res.status(200).json(pendingSales);
+    const packageWhere = {
+      paymentStatus: "Con adeudo",
+      status: { [Op.ne]: "Cancelado" },
+    };
+    if (marca) packageWhere.marca = marca;
+    if (search) {
+      packageWhere[Op.or] = [
+        { "$customer.name$": { [Op.like]: `%${search}%` } },
+        { "$service.name$": { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    const pendingPackages = await CustomerPackage.findAll({
+      where: packageWhere,
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: ["customerId", "name", "phone"],
+        },
+        {
+          model: Service,
+          as: "service",
+          attributes: ["serviceId", "name"],
+        },
+      ],
+      order: [["created_at", "ASC"]],
+      subQuery: false,
+    });
+
+    res.status(200).json({ pendingSales, pendingPackages });
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener las cuentas por cobrar",

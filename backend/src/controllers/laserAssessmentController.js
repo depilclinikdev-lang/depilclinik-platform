@@ -6,6 +6,7 @@ import Appointment from "../models/Appointment.js";
 import Customer from "../models/Customer.js";
 import { sanitizeEmptyStrings } from "../utils/sanitize.js";
 import { createPendingPhotosForAssessment } from "./assessmentPhotoController.js";
+import { syncPackageSessionOnCompletion } from "./packageController.js";
 import Service from "../models/Service.js";
 
 const fullIncludes = [
@@ -192,6 +193,7 @@ export const createLaserAssessment = async (req, res) => {
         { status: "Completada" },
         { where: { appointmentId: appointment.appointmentId }, transaction: t },
       );
+      await syncPackageSessionOnCompletion(appointment.appointmentId, t);
     }
 
     await t.commit();

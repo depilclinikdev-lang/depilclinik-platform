@@ -106,26 +106,58 @@ export const getCollaboratorPerformance = async (req, res) => {
     const month = req.query.month || now.getMonth() + 1;
     const { start, end } = getMonthRange(year, month);
 
-    const results = await Appointment.findAll({
+    const medicalResults = await MedicalAssessment.findAll({
       where: {
-        status: "Completada",
-        startTime: { [Op.between]: [start, end] },
-        userId: { [Op.ne]: null },
+        created_at: { [Op.between]: [start, end] },
+        filledByUserId: { [Op.ne]: null },
       },
       attributes: [
-        "userId",
-        [fn("COUNT", col("Appointment.appointment_id")), "count"],
+        "filledByUserId",
+        [fn("COUNT", col("MedicalAssessment.assessment_id")), "count"],
       ],
-      include: [{ model: User, as: "collaborator", attributes: ["name"] }],
-      group: ["userId", "collaborator.user_id"],
-      order: [[literal("count"), "DESC"]],
+      include: [{ model: User, as: "filledBy", attributes: ["id", "name"] }],
+      group: ["filledByUserId", "filledBy.user_id"],
     });
 
-    const formatted = results.map((r) => ({
-      userId: r.userId,
-      name: r.collaborator?.name || "Sin asignar",
-      count: Number(r.get("count")),
-    }));
+    const laserResults = await LaserMedicalAssessment.findAll({
+      where: {
+        created_at: { [Op.between]: [start, end] },
+        filledByUserId: { [Op.ne]: null },
+      },
+      attributes: [
+        "filledByUserId",
+        [
+          fn("COUNT", col("LaserMedicalAssessment.laser_assessment_id")),
+          "count",
+        ],
+      ],
+      include: [{ model: User, as: "filledBy", attributes: ["id", "name"] }],
+      group: ["filledByUserId", "filledBy.user_id"],
+    });
+
+    const countsByUser = new Map();
+
+    const mergeResults = (results) => {
+      results.forEach((result) => {
+        const userId = result.filledByUserId;
+        if (!userId) return;
+        const count = Number(result.get("count")) || 0;
+        const existing = countsByUser.get(userId) || {
+          userId,
+          name: result.filledBy?.name || "Sin asignar",
+          count: 0,
+        };
+        existing.count += count;
+        countsByUser.set(userId, existing);
+      });
+    };
+
+    mergeResults(medicalResults);
+    mergeResults(laserResults);
+
+    const formatted = Array.from(countsByUser.values()).sort(
+      (a, b) => b.count - a.count,
+    );
 
     res.status(200).json(formatted);
   } catch (error) {
@@ -199,13 +231,21 @@ export const getMyMonthlyCount = async (req, res) => {
     const month = req.query.month || now.getMonth() + 1;
     const { start, end } = getMonthRange(year, month);
 
-    const completedCount = await Appointment.count({
+    const medicalCount = await MedicalAssessment.count({
       where: {
-        userId: req.user.id,
-        status: "Completada",
-        startTime: { [Op.between]: [start, end] },
+        filledByUserId: req.user.id,
+        created_at: { [Op.between]: [start, end] },
       },
     });
+
+    const laserCount = await LaserMedicalAssessment.count({
+      where: {
+        filledByUserId: req.user.id,
+        created_at: { [Op.between]: [start, end] },
+      },
+    });
+
+    const completedCount = medicalCount + laserCount;
 
     res.status(200).json({ completedCount });
   } catch (error) {

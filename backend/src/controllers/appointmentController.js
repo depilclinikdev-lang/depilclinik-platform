@@ -4,8 +4,52 @@ import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
 import User from "../models/User.js";
 import Sale from "../models/Sale.js";
+import PackageSession from "../models/PackageSession.js";
 import MedicalAssessment from "../models/MedicalAssessment.js";
 import LaserMedicalAssessment from "../models/LaserMedicalAssessment.js";
+import sequelize from "../config/db.js";
+import { syncPackageSessionOnCompletion } from "./packageController.js";
+
+export const updateAppointmentStatus = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const validStatuses = [
+      "Programada",
+      "Confirmada",
+      "En Tratamiento",
+      "Completada",
+      "Cancelada",
+    ];
+
+    if (!validStatuses.includes(status)) {
+      await t.rollback();
+      return res.status(400).json({ message: "Estado no válido" });
+    }
+
+    const appointment = await Appointment.findByPk(id, { transaction: t });
+    if (!appointment) {
+      await t.rollback();
+      return res.status(404).json({ message: "Cita no encontrada" });
+    }
+
+    await appointment.update({ status }, { transaction: t });
+
+    if (status === "Completada") {
+      await syncPackageSessionOnCompletion(id, t);
+    }
+
+    await t.commit();
+    res.status(200).json({ message: "Estado actualizado", status });
+  } catch (error) {
+    await t.rollback();
+    res.status(500).json({
+      message: "Server error while updating status",
+      error: error.message,
+    });
+  }
+};
 
 const appointmentIncludes = [
   {
@@ -16,6 +60,12 @@ const appointmentIncludes = [
   { model: Service, as: "service", attributes: ["serviceId", "name", "brand"] },
   { model: User, as: "collaborator", attributes: ["id", "name"] },
   { model: Sale, as: "sale", attributes: ["saleId", "folio", "status"] },
+  {
+    model: PackageSession,
+    as: "packageSession",
+    attributes: ["packageSessionId", "packageId", "status"],
+    required: false,
+  },
   {
     model: MedicalAssessment,
     as: "medicalAssessment",
@@ -209,37 +259,6 @@ export const updateAppointment = async (req, res) => {
   }
 };
 
-export const updateAppointmentStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    const validStatuses = [
-      "Programada",
-      "Confirmada",
-      "En Tratamiento",
-      "Completada",
-      "Cancelada",
-    ];
-
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Estado no válido" });
-    }
-
-    const appointment = await Appointment.findByPk(id);
-    if (!appointment) {
-      return res.status(404).json({ message: "Cita no encontrada" });
-    }
-
-    await appointment.update({ status });
-    res.status(200).json({ message: "Estado actualizado", status });
-  } catch (error) {
-    res.status(500).json({
-      message: "Server error while updating status",
-      error: error.message,
-    });
-  }
-};
-
 export const getPendingCheckouts = async (req, res) => {
   try {
     const appointments = await Appointment.findAll({
@@ -248,11 +267,17 @@ export const getPendingCheckouts = async (req, res) => {
         { model: Customer, as: "customer", attributes: ["name"] },
         { model: Service, as: "service", attributes: ["name"] },
         { model: Sale, as: "sale", attributes: ["saleId"] },
+        {
+          model: PackageSession,
+          as: "packageSession",
+          attributes: ["packageSessionId"],
+          required: false,
+        },
       ],
       order: [["startTime", "DESC"]],
     });
 
-    const pending = appointments.filter((a) => !a.sale);
+    const pending = appointments.filter((a) => !a.sale && !a.packageSession);
 
     res.status(200).json(pending);
   } catch (error) {

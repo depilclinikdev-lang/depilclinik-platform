@@ -34,6 +34,30 @@ import SalePayment from "./SalePayment.js";
 
 import WhatsappNotification from "./WhatsappNotification.js";
 
+import CustomerPackage from "./CustomerPackage.js";
+import PackageSession from "./PackageSession.js";
+import PackagePayment from "./PackagePayment.js";
+
+Customer.hasMany(CustomerPackage, { foreignKey: "customerId", as: "packages" });
+CustomerPackage.belongsTo(Customer, {
+  foreignKey: "customerId",
+  as: "customer",
+});
+
+Service.hasMany(CustomerPackage, { foreignKey: "serviceId", as: "packages" });
+CustomerPackage.belongsTo(Service, { foreignKey: "serviceId", as: "service" });
+
+PackageSession.belongsTo(Appointment, {
+  foreignKey: "appointmentId",
+  as: "appointment",
+});
+Appointment.hasOne(PackageSession, {
+  foreignKey: "appointmentId",
+  as: "packageSession",
+});
+
+export { CustomerPackage, PackageSession, PackagePayment };
+
 // Asociaciones que faltan por conectar (ver punto 3 más abajo)
 MedicalAssessment.hasMany(ModelhaEvolutionLog, {
   foreignKey: "assessmentId",
