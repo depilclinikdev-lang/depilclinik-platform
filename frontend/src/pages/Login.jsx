@@ -171,6 +171,7 @@ const LoginSPA = ({ onLoginSuccess }) => {
                         id="newPassword"
                         type={showNewPassword ? "text" : "password"}
                         placeholder="••••••••"
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
@@ -208,6 +209,7 @@ const LoginSPA = ({ onLoginSuccess }) => {
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="••••••••"
+                        autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
