@@ -1,5 +1,6 @@
 import Customer from "../models/Customer.js";
 import { Op } from "sequelize";
+import { sanitizeEmptyStrings } from "../utils/sanitize.js";
 
 export const createCustomer = async (req, res) => {
   try {
@@ -14,12 +15,12 @@ export const createCustomer = async (req, res) => {
       emergencyContactName,
       emergencyContactPhone,
       medicalInsuranceNumber,
-    } = req.body;
+    } = sanitizeEmptyStrings(req.body);
 
     const phoneExists = await Customer.findOne({
       where: {
         phone,
-        isActive: true, // <-- FILTRAR SOLO ACTIVOS
+        isActive: true,
       },
     });
 
@@ -33,13 +34,28 @@ export const createCustomer = async (req, res) => {
       const emailExists = await Customer.findOne({
         where: {
           email,
-          isActive: true, // <-- FILTRAR SOLO ACTIVOS
+          isActive: true,
         },
       });
       if (emailExists) {
         return res
           .status(400)
           .json({ message: "A customer with this email already exists" });
+      }
+    }
+
+    if (medicalInsuranceNumber) {
+      const insuranceExists = await Customer.findOne({
+        where: {
+          medicalInsuranceNumber,
+          isActive: true,
+        },
+      });
+      if (insuranceExists) {
+        return res.status(400).json({
+          message:
+            "Ya existe un cliente registrado con ese número de seguro médico",
+        });
       }
     }
 
@@ -65,9 +81,15 @@ export const createCustomer = async (req, res) => {
     });
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
+      const conflictField = error.errors?.[0]?.path;
+      const fieldLabels = {
+        phone: "teléfono",
+        email: "correo electrónico",
+        medical_insurance_number: "número de seguro médico",
+      };
+      const label = fieldLabels[conflictField] || "dato ingresado";
       return res.status(400).json({
-        message:
-          "Ya existe un cliente registrado con ese teléfono o correo electrónico",
+        message: `Ya existe un cliente registrado con ese ${label}`,
       });
     }
     res.status(500).json({
@@ -148,10 +170,23 @@ export const updateCustomer = async (req, res) => {
       return res.status(404).json({ message: "Customer not found" });
     }
 
-    await customer.update(req.body);
+    const sanitizedBody = sanitizeEmptyStrings(req.body);
+    await customer.update(sanitizedBody);
 
     res.status(200).json(customer);
   } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") {
+      const conflictField = error.errors?.[0]?.path;
+      const fieldLabels = {
+        phone: "teléfono",
+        email: "correo electrónico",
+        medical_insurance_number: "número de seguro médico",
+      };
+      const label = fieldLabels[conflictField] || "dato ingresado";
+      return res.status(400).json({
+        message: `Ya existe un cliente registrado con ese ${label}`,
+      });
+    }
     res.status(500).json({
       message: "Server error while updating customer",
       error: error.message,
