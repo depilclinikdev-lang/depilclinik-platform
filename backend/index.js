@@ -28,6 +28,8 @@ dotenv.config();
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 // Middlewares de seguridad y parseo
 app.use(helmet());
 app.use(
