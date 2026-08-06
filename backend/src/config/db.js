@@ -16,11 +16,20 @@ const sequelize = new Sequelize(
     dialectOptions: {
       charset: "utf8mb4",
     },
+    define: {
+      charset: "utf8mb4",
+      collate: "utf8mb4_0900_ai_ci",
+    },
     pool: {
       max: 5,
       min: 0,
       acquire: 30000,
       idle: 10000,
+      afterCreate: (conn, done) => {
+        conn.query("SET NAMES utf8mb4", (err) => {
+          done(err, conn);
+        });
+      },
     },
   },
 );

@@ -164,11 +164,29 @@ export const createAssessment = async (req, res) => {
       facialEvaluation,
     } = sanitizedBody;
 
+    const allowedReferredMedia = [
+      "Instagram",
+      "Facebook",
+      "TikTok",
+      "Recomendacion",
+      "Por su cuenta",
+      "Otro",
+    ];
+
+    const allowedPeriodTypes = ["Regular", "Irregular", "Cólicos", "Antojos"];
+
     if (!general || !general.consultationReason || !general.referredMedia) {
       await t.rollback();
       return res.status(400).json({
         message:
           "El motivo de consulta y el medio de referencia son obligatorios",
+      });
+    }
+
+    if (!allowedReferredMedia.includes(general.referredMedia)) {
+      await t.rollback();
+      return res.status(400).json({
+        message: `Medio de referencia inválido: ${general.referredMedia}`,
       });
     }
 
@@ -205,7 +223,30 @@ export const createAssessment = async (req, res) => {
         periodType: gynecoRecord.periodType?.trim() || null,
       };
 
-      console.log("gynecoRecord saneado:", JSON.stringify(safeGynecoRecord));
+      if (safeGynecoRecord.periodType) {
+        const periodType = safeGynecoRecord.periodType;
+        const codePoints = Array.from(periodType).map((char) =>
+          char.codePointAt(0),
+        );
+        console.log("GYNECO PERIOD TYPE DEBUG", {
+          periodType,
+          json: JSON.stringify(periodType),
+          length: periodType.length,
+          codePoints,
+          inAllowed: allowedPeriodTypes.includes(periodType),
+          allowedPeriodTypes,
+        });
+      }
+
+      if (
+        safeGynecoRecord.periodType &&
+        !allowedPeriodTypes.includes(safeGynecoRecord.periodType)
+      ) {
+        await t.rollback();
+        return res.status(400).json({
+          message: `Tipo de periodo inválido: ${safeGynecoRecord.periodType}`,
+        });
+      }
 
       const createdGyneco = await GynecoObstetricRecord.create(
         { ...safeGynecoRecord, assessmentId: assessment.assessmentId },

@@ -12,8 +12,9 @@ export const sanitizeEmptyStrings = (value) => {
     );
   }
 
-  if (typeof value === "string" && value.trim() === "") {
-    return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
   }
 
   return value;
