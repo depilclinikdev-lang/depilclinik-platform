@@ -250,6 +250,16 @@ const AppointmentModal = ({ isOpen, onClose, onRefresh, appointment }) => {
       return;
     }
 
+    if (!formData.serviceId) {
+      setError("Selecciona un servicio para continuar");
+      return;
+    }
+
+    if (!formData.userId) {
+      setError("Selecciona un colaborador para continuar");
+      return;
+    }
+
     if (!formData.startTime || !formData.endTime) {
       setError("Completa la fecha y la hora de inicio y fin");
       return;
@@ -449,7 +459,6 @@ const AppointmentModal = ({ isOpen, onClose, onRefresh, appointment }) => {
             </label>
             <select
               name="serviceId"
-              required
               value={formData.serviceId}
               onChange={handleChange}
               className="w-full px-4 py-2 rounded-xl border border-borderClinik text-sm focus:outline-none focus:border-secondary bg-white"
@@ -467,7 +476,7 @@ const AppointmentModal = ({ isOpen, onClose, onRefresh, appointment }) => {
 
           <div>
             <label className="block text-xs font-bold text-primary uppercase mb-1">
-              Colaborador
+              Colaborador *
             </label>
             <select
               name="userId"
@@ -475,7 +484,7 @@ const AppointmentModal = ({ isOpen, onClose, onRefresh, appointment }) => {
               onChange={handleChange}
               className="w-full px-4 py-2 rounded-xl border border-borderClinik text-sm focus:outline-none focus:border-secondary bg-white"
             >
-              <option value="">Sin asignar</option>
+              <option value="">Selecciona un colaborador</option>
               {collaborators.map((u) => (
                 <option key={u.user_id} value={u.user_id}>
                   {u.name}

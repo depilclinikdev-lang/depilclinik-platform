@@ -161,6 +161,12 @@ export const createAppointment = async (req, res) => {
         .json({ message: "Faltan campos requeridos para agendar la cita" });
     }
 
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ message: "Selecciona un colaborador para la cita" });
+    }
+
     if (new Date(endTime) <= new Date(startTime)) {
       return res.status(400).json({
         message: "La hora de fin debe ser posterior a la hora de inicio",

@@ -10,6 +10,7 @@ import {
   LuChevronRight,
 } from "react-icons/lu";
 import SaleDetailModal from "../components/SaleDetailModal";
+import PackageDetailModal from "../components/PackageDetailModal";
 import { showLoading, closeAlert, showError } from "../utils/alerts";
 
 const STATUS_COLORS = {
@@ -79,6 +80,7 @@ const IngresosPage = () => {
   const defaultRange = getCurrentMonthRange();
 
   const [sales, setSales] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [pendingSales, setPendingSales] = useState([]);
   const [pendingPackages, setPendingPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,9 @@ const IngresosPage = () => {
   });
 
   const [selectedSale, setSelectedSale] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [packageDetailLoading, setPackageDetailLoading] = useState(false);
 
   const { from: dateFrom, to: dateTo } = getExportRangeForMonth(selectedMonth);
   const isCurrentMonth = selectedMonth === getCurrentYearMonth();
@@ -136,6 +140,7 @@ const IngresosPage = () => {
         },
       });
       setSales(response.data.sales);
+      setPackages(response.data.packages || []);
       setTotalPages(response.data.totalPages);
       setError("");
     } catch (err) {
@@ -217,6 +222,18 @@ const IngresosPage = () => {
     }
   };
 
+  const handleOpenPackageDetail = async (packageId) => {
+    try {
+      setPackageDetailLoading(true);
+      const response = await api.get(`/packages/${packageId}`);
+      setSelectedPackage(response.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPackageDetailLoading(false);
+    }
+  };
+
   const formatCurrency = (value) =>
     new Intl.NumberFormat("es-MX", {
       style: "currency",
@@ -229,6 +246,58 @@ const IngresosPage = () => {
       month: "short",
       year: "numeric",
     });
+
+  const normalizeHistoryRecord = (item, type) => {
+    const createdAt = item.createdAt || item.created_at;
+    const customer = item.customer || null;
+
+    if (type === "sale") {
+      return {
+        type,
+        saleId: item.saleId,
+        folio: item.folio || `V${String(item.saleId || "").padStart(6, "0")}`,
+        createdAt,
+        customer,
+        items: item.items || [],
+        totalAmount: Number(item.totalAmount ?? item.total_amount ?? 0),
+        status: item.status,
+      };
+    }
+
+    const packageId = item.packageId ?? item.package_id;
+    return {
+      type,
+      packageId,
+      folio: `PKG${packageId}`,
+      createdAt,
+      customer,
+      service: item.service,
+      totalPrice: Number(item.totalPrice ?? item.total_price ?? 0),
+      amountPaid: Number(item.amountPaid ?? item.amount_paid ?? 0),
+      paymentStatus:
+        item.paymentStatus ||
+        item.payment_status ||
+        item.status ||
+        "Con adeudo",
+      status: item.status,
+    };
+  };
+
+  const historyRecords = React.useMemo(
+    () =>
+      [...sales, ...packages]
+        .map((item) =>
+          item.type === "package"
+            ? normalizeHistoryRecord(item, "package")
+            : normalizeHistoryRecord(item, "sale"),
+        )
+        .sort((a, b) =>
+          new Date(a.createdAt).getTime() < new Date(b.createdAt).getTime()
+            ? 1
+            : -1,
+        ),
+    [sales, packages],
+  );
 
   const handleExportPdf = async () => {
     const { from, to } = getExportRangeForMonth(selectedMonth);
@@ -548,8 +617,16 @@ const IngresosPage = () => {
                         <td className="p-4 text-sm font-bold text-red-600">
                           {formatCurrency(balance)}
                         </td>
-                        <td className="p-4 text-right text-xs text-gray-500">
-                          —
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={() =>
+                              handleOpenPackageDetail(pkg.packageId)
+                            }
+                            disabled={packageDetailLoading}
+                            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                          >
+                            Abonar
+                          </button>
                         </td>
                       </tr>
                     );
@@ -558,7 +635,7 @@ const IngresosPage = () => {
               </table>
             </div>
           )
-        ) : sales.length === 0 ? (
+        ) : historyRecords.length === 0 ? (
           <p className="text-accent text-center font-medium p-8 text-sm">
             No se encontraron transacciones en este rango.
           </p>
@@ -583,40 +660,58 @@ const IngresosPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {sales.map((sale) => (
+                {historyRecords.map((item) => (
                   <tr
-                    key={sale.saleId}
+                    key={
+                      item.type === "sale"
+                        ? item.saleId
+                        : `pkg-${item.packageId}`
+                    }
                     className="hover:bg-gray-50/50 transition-colors"
                   >
                     <td className="p-4 text-sm font-semibold text-primary">
-                      {sale.folio}
+                      {item.type === "sale"
+                        ? item.folio
+                        : `PKG${item.packageId}`}
                     </td>
                     <td className="p-4 text-sm text-gray-600">
-                      {formatDate(sale.createdAt || sale.created_at)}
+                      {formatDate(item.createdAt || item.created_at)}
                     </td>
                     <td className="p-4 text-sm text-primary font-medium">
-                      {sale.customer?.name || "—"}
+                      {item.customer?.name || "—"}
                     </td>
                     <td className="p-4 text-sm text-gray-600 max-w-50 truncate">
-                      {sale.items
-                        ?.map((i) => i.service?.name)
-                        .filter(Boolean)
-                        .join(", ") || "—"}
+                      {item.type === "sale"
+                        ? item.items
+                            ?.map((i) => i.service?.name)
+                            .filter(Boolean)
+                            .join(", ")
+                        : item.service?.name || "—"}
                     </td>
                     <td className="p-4 text-sm font-bold text-primary">
-                      {formatCurrency(sale.totalAmount)}
+                      {formatCurrency(
+                        item.type === "sale"
+                          ? item.totalAmount
+                          : item.totalPrice,
+                      )}
                     </td>
                     <td className="p-4">
                       <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${STATUS_COLORS[sale.status]}`}
+                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${STATUS_COLORS[item.type === "sale" ? item.status : item.paymentStatus]}`}
                       >
-                        {sale.status}
+                        {item.type === "sale"
+                          ? item.status
+                          : item.paymentStatus}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <button
-                        onClick={() => handleOpenDetail(sale.saleId)}
-                        disabled={detailLoading}
+                        onClick={() =>
+                          item.type === "sale"
+                            ? handleOpenDetail(item.saleId)
+                            : handleOpenPackageDetail(item.packageId)
+                        }
+                        disabled={detailLoading || packageDetailLoading}
                         className="p-1.5 text-accent hover:text-secondary transition-colors cursor-pointer disabled:opacity-50"
                         title="Ver detalle"
                       >
@@ -663,6 +758,19 @@ const IngresosPage = () => {
             fetchPendingAccounts();
           } else {
             fetchSales();
+          }
+          fetchSummary();
+        }}
+      />
+
+      <PackageDetailModal
+        isOpen={Boolean(selectedPackage)}
+        pkg={selectedPackage}
+        onClose={() => setSelectedPackage(null)}
+        onRefresh={async () => {
+          await handleOpenPackageDetail(selectedPackage.packageId);
+          if (activeTab === "cuentasPorCobrar") {
+            fetchPendingAccounts();
           }
           fetchSummary();
         }}

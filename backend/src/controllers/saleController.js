@@ -32,6 +32,15 @@ const saleIncludes = [
   { model: SalePayment, as: "payments" },
 ];
 
+const packageIncludes = [
+  {
+    model: Customer,
+    as: "customer",
+    attributes: ["customerId", "name", "phone"],
+  },
+  { model: Service, as: "service", attributes: ["serviceId", "name"] },
+];
+
 const buildFolio = (saleId) => `V${String(saleId).padStart(6, "0")}`;
 
 const recomputeStatus = (totalAmount, amountPaid) => {
@@ -244,41 +253,85 @@ export const getSalesHistory = async (req, res) => {
       page = 1,
       limit = 25,
     } = req.query;
-    const where = {};
 
-    if (marca) where.marca = marca;
-    if (status) where.status = status;
-
-    if (dateFrom || dateTo) {
-      where.created_at = {};
-      if (dateFrom) where.created_at[Op.gte] = new Date(`${dateFrom}T00:00:00`);
-      if (dateTo) where.created_at[Op.lte] = new Date(`${dateTo}T23:59:59`);
+    const saleWhere = {};
+    if (marca) saleWhere.marca = marca;
+    if (status && ["Liquidada", "Con adeudo", "Cancelada"].includes(status)) {
+      saleWhere.status = status;
     }
-
+    if (dateFrom || dateTo) {
+      saleWhere.created_at = {};
+      if (dateFrom)
+        saleWhere.created_at[Op.gte] = new Date(`${dateFrom}T00:00:00`);
+      if (dateTo) saleWhere.created_at[Op.lte] = new Date(`${dateTo}T23:59:59`);
+    }
     if (search) {
-      where[Op.or] = [
+      saleWhere[Op.or] = [
         { folio: { [Op.like]: `%${search}%` } },
         { "$customer.name$": { [Op.like]: `%${search}%` } },
       ];
     }
 
-    const offset = (Number(page) - 1) * Number(limit);
+    const packageWhere = { status: { [Op.ne]: "Cancelado" } };
+    if (marca) packageWhere.marca = marca;
+    if (status) {
+      if (["Activo", "Completado", "Cancelado"].includes(status)) {
+        packageWhere.status = status;
+      } else if (["Pagado", "Con adeudo"].includes(status)) {
+        packageWhere.paymentStatus = status;
+      }
+    }
+    if (dateFrom || dateTo) {
+      packageWhere.created_at = {};
+      if (dateFrom)
+        packageWhere.created_at[Op.gte] = new Date(`${dateFrom}T00:00:00`);
+      if (dateTo)
+        packageWhere.created_at[Op.lte] = new Date(`${dateTo}T23:59:59`);
+    }
+    if (search) {
+      packageWhere[Op.or] = [
+        { "$customer.name$": { [Op.like]: `%${search}%` } },
+        { "$service.name$": { [Op.like]: `%${search}%` } },
+      ];
+    }
 
-    const { rows, count } = await Sale.findAndCountAll({
-      where,
-      include: saleIncludes,
-      order: [["created_at", "DESC"]],
-      limit: Number(limit),
-      offset,
-      subQuery: false,
-      distinct: true,
-    });
+    const [sales, packages] = await Promise.all([
+      Sale.findAll({
+        where: saleWhere,
+        include: saleIncludes,
+        order: [["created_at", "DESC"]],
+        subQuery: false,
+      }),
+      CustomerPackage.findAll({
+        where: packageWhere,
+        include: packageIncludes,
+        order: [["created_at", "DESC"]],
+        subQuery: false,
+      }),
+    ]);
+
+    const combined = [
+      ...sales.map((s) => ({ ...s.toJSON(), type: "sale" })),
+      ...packages.map((p) => ({ ...p.toJSON(), type: "package" })),
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt || b.created_at) -
+        new Date(a.createdAt || a.created_at),
+    );
+
+    const limitNum = Number(limit);
+    const pageNum = Number(page);
+    const total = combined.length;
+    const totalPages = Math.max(1, Math.ceil(total / limitNum));
+    const offset = (pageNum - 1) * limitNum;
+    const pageItems = combined.slice(offset, offset + limitNum);
 
     res.status(200).json({
-      sales: rows,
-      total: count,
-      page: Number(page),
-      totalPages: Math.ceil(count / Number(limit)),
+      sales: pageItems.filter((i) => i.type === "sale"),
+      packages: pageItems.filter((i) => i.type === "package"),
+      total,
+      page: pageNum,
+      totalPages,
     });
   } catch (error) {
     res.status(500).json({
@@ -318,14 +371,29 @@ const buildSalesPdfBuffer = async ({
     subQuery: false,
   });
 
-  const totalIncome = sales.reduce(
-    (sum, s) => sum + parseFloat(s.amountPaid),
-    0,
-  );
-  const pendingBalance = sales.reduce(
-    (sum, s) => sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
-    0,
-  );
+  const packages = await CustomerPackage.findAll({
+    where: {
+      status: { [Op.ne]: "Cancelado" },
+      created_at: where.created_at,
+      ...(marca ? { marca } : {}),
+    },
+    include: packageIncludes,
+    order: [["created_at", "ASC"]],
+    subQuery: false,
+  });
+
+  const totalIncome =
+    sales.reduce((sum, s) => sum + parseFloat(s.amountPaid), 0) +
+    packages.reduce((sum, p) => sum + parseFloat(p.amountPaid), 0);
+  const pendingBalance =
+    sales.reduce(
+      (sum, s) => sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
+      0,
+    ) +
+    packages.reduce(
+      (sum, p) => sum + (parseFloat(p.totalPrice) - parseFloat(p.amountPaid)),
+      0,
+    );
 
   const formatCurrency = (v) =>
     new Intl.NumberFormat("es-MX", {
@@ -418,7 +486,34 @@ const buildSalesPdfBuffer = async ({
     let y = drawHeaderRow(doc.y);
     doc.fontSize(8.5);
 
-    sales.forEach((sale, index) => {
+    const records = [
+      ...sales.map((sale) => ({
+        type: "sale",
+        id: sale.saleId,
+        folio: sale.folio,
+        date: sale.createdAt || sale.created_at,
+        customerName: sale.customer?.name || "—",
+        treatment:
+          sale.items
+            ?.map((i) => i.service?.name)
+            .filter(Boolean)
+            .join(", ") || "—",
+        amount: sale.totalAmount,
+        status: sale.status,
+      })),
+      ...packages.map((pkg) => ({
+        type: "package",
+        id: pkg.packageId,
+        folio: `PKG${pkg.packageId}`,
+        date: pkg.createdAt || pkg.created_at,
+        customerName: pkg.customer?.name || "—",
+        treatment: pkg.service?.name || "—",
+        amount: pkg.totalPrice,
+        status: pkg.paymentStatus,
+      })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    records.forEach((record, index) => {
       if (y > doc.page.height - doc.page.margins.bottom - 30) {
         doc.addPage({ layout: "landscape" });
         y = drawHeaderRow(doc.page.margins.top);
@@ -429,19 +524,13 @@ const buildSalesPdfBuffer = async ({
       }
       doc.fillColor(black);
 
-      const treatments =
-        sale.items
-          ?.map((i) => i.service?.name)
-          .filter(Boolean)
-          .join(", ") || "—";
-
       const rowData = [
-        sale.folio,
-        formatDate(sale.createdAt || sale.created_at),
-        sale.customer?.name || "—",
-        treatments,
-        formatCurrency(sale.totalAmount),
-        sale.status,
+        record.folio,
+        formatDate(record.date),
+        record.customerName,
+        record.treatment,
+        formatCurrency(record.amount),
+        record.status,
       ];
 
       let x = left;
@@ -473,7 +562,7 @@ const buildSalesPdfBuffer = async ({
       .fontSize(10)
       .fillColor(black)
       .text("RESUMEN FINANCIERO DEL PERIODO", left, y);
-    y += 16;
+    y += 18;
 
     doc.fontSize(10).fillColor(black);
     doc.text(
@@ -481,12 +570,17 @@ const buildSalesPdfBuffer = async ({
       left,
       y,
     );
+    y += 16;
+
     doc.text(
       `Saldos pendientes: ${formatCurrency(pendingBalance)} MXN`,
       left,
-      y + 16,
+      y,
     );
-    doc.text(`Total de ventas en el rango: ${sales.length}`, left, y + 32);
+    y += 16;
+
+    doc.text(`Total de transacciones en el rango: ${records.length}`, left, y);
+    y += 24;
 
     y += 60;
     doc
