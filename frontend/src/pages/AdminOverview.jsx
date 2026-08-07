@@ -262,45 +262,43 @@ const AdminOverview = ({ userRole }) => {
                   {bucket}
                 </span>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-150">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="p-3 text-xs font-bold text-accent">
-                          Cliente
-                        </th>
-                        <th className="p-3 text-xs font-bold text-accent">
-                          Servicio
-                        </th>
-                        <th className="p-3 text-xs font-bold text-accent">
-                          Colaborador
-                        </th>
-                        <th className="p-3 text-xs font-bold text-accent">
-                          Horario
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
+                  <div className="min-w-150">
+                    <div className="grid grid-cols-[1.8fr_1.8fr_1.8fr_1.2fr] gap-2 border-b border-gray-100 pb-2">
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Cliente
+                      </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Servicio
+                      </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Colaborador
+                      </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Horario
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
                       {groupedUpcoming[bucket].map((appt) => (
-                        <tr
+                        <div
                           key={appt.appointmentId}
-                          className="hover:bg-gray-50/50 transition-colors"
+                          className="grid grid-cols-[1.8fr_1.8fr_1.8fr_1.2fr] gap-2 hover:bg-gray-50/50 transition-colors"
                         >
-                          <td className="p-3 text-sm font-semibold text-primary">
+                          <span className="p-3 text-sm font-semibold text-primary">
                             {formatShortName(appt.customer?.name)}
-                          </td>
-                          <td className="p-3 text-sm text-gray-600">
+                          </span>
+                          <span className="p-3 text-sm text-gray-600">
                             {appt.service?.name || "—"}
-                          </td>
-                          <td className="p-3 text-sm text-gray-600">
+                          </span>
+                          <span className="p-3 text-sm text-gray-600">
                             {formatShortName(appt.collaborator?.name)}
-                          </td>
-                          <td className="p-3 text-sm text-gray-600">
+                          </span>
+                          <span className="p-3 text-sm text-gray-600">
                             {formatTime(appt.startTime)}
-                          </td>
-                        </tr>
+                          </span>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
