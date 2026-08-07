@@ -170,14 +170,13 @@ export const getCollaboratorPerformance = async (req, res) => {
 
 export const getUpcomingAppointments = async (req, res) => {
   try {
-    const startOfTomorrow = new Date();
-    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-    startOfTomorrow.setHours(0, 0, 0, 0);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
     const appointments = await Appointment.findAll({
       where: {
         status: { [Op.notIn]: ["Completada", "Cancelada"] },
-        startTime: { [Op.gte]: startOfTomorrow }, // 👈 Solo de mañana en adelante
+        startTime: { [Op.gte]: startOfToday }, // 👈 Desde hoy en adelante
       },
       include: [
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
@@ -185,7 +184,7 @@ export const getUpcomingAppointments = async (req, res) => {
         { model: User, as: "collaborator", attributes: ["name"] },
       ],
       order: [["startTime", "ASC"]],
-      limit: 8,
+      limit: 12,
     });
 
     res.status(200).json(appointments);
