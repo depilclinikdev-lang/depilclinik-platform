@@ -22,6 +22,30 @@ const StatCard = ({ icon: Icon, label, value, color = "#197e88" }) => (
   </div>
 );
 
+// Clasifica una cita en "Hoy", "Mañana" o "Después" comparando solo la fecha
+// (sin horas), para poder agrupar visualmente la tabla de próximas citas.
+const getDayBucket = (dateValue) => {
+  const apptDate = new Date(dateValue);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const apptDay = new Date(apptDate);
+  apptDay.setHours(0, 0, 0, 0);
+
+  if (apptDay.getTime() === today.getTime()) return "Hoy";
+  if (apptDay.getTime() === tomorrow.getTime()) return "Mañana";
+  return "Después";
+};
+
+const BUCKET_ORDER = ["Hoy", "Mañana", "Después"];
+const BUCKET_COLORS = {
+  Hoy: "bg-secondary/10 text-secondary",
+  Mañana: "bg-gold/10 text-gold",
+  Después: "bg-gray-100 text-gray-500",
+};
+
 const CollaboratorDashboard = ({ userName }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -65,6 +89,13 @@ const CollaboratorDashboard = ({ userName }) => {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  const groupedUpcoming = upcoming.reduce((acc, appt) => {
+    const bucket = getDayBucket(appt.startTime || appt.start_time);
+    if (!acc[bucket]) acc[bucket] = [];
+    acc[bucket].push(appt);
+    return acc;
+  }, {});
 
   if (loading) {
     return (
@@ -110,49 +141,6 @@ const CollaboratorDashboard = ({ userName }) => {
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
         <h3 className="text-sm font-bold text-primary uppercase mb-4 flex items-center gap-2">
-          <LuClock size={16} className="text-secondary" /> Tus Citas de Hoy
-        </h3>
-        {todayAppointments.length === 0 ? (
-          <p className="text-xs text-accent text-center py-6">
-            No tienes citas asignadas para el día de hoy.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-125">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="p-3 text-xs font-bold text-accent">Cliente</th>
-                  <th className="p-3 text-xs font-bold text-accent">
-                    Servicio
-                  </th>
-                  <th className="p-3 text-xs font-bold text-accent">Horario</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {todayAppointments.map((appt) => (
-                  <tr
-                    key={appt.appointmentId}
-                    className="hover:bg-gray-50/50 transition-colors"
-                  >
-                    <td className="p-3 text-sm font-semibold text-primary">
-                      {appt.customer?.name || "—"}
-                    </td>
-                    <td className="p-3 text-sm text-gray-600">
-                      {appt.service?.name || "—"}
-                    </td>
-                    <td className="p-3 text-sm text-gray-600">
-                      {formatTime(appt.startTime || appt.start_time)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-sm font-bold text-primary uppercase mb-4 flex items-center gap-2">
           <LuClock size={16} className="text-secondary" /> Tus Próximas Citas
         </h3>
         {upcoming.length === 0 ? (
@@ -160,36 +148,51 @@ const CollaboratorDashboard = ({ userName }) => {
             No tienes próximas citas pendientes.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-125">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="p-3 text-xs font-bold text-accent">Cliente</th>
-                  <th className="p-3 text-xs font-bold text-accent">
-                    Servicio
-                  </th>
-                  <th className="p-3 text-xs font-bold text-accent">Horario</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {upcoming.map((appt) => (
-                  <tr
-                    key={appt.appointmentId}
-                    className="hover:bg-gray-50/50 transition-colors"
-                  >
-                    <td className="p-3 text-sm font-semibold text-primary">
-                      {appt.customer?.name || "—"}
-                    </td>
-                    <td className="p-3 text-sm text-gray-600">
-                      {appt.service?.name || "—"}
-                    </td>
-                    <td className="p-3 text-sm text-gray-600">
-                      {formatTime(appt.startTime || appt.start_time)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-5">
+            {BUCKET_ORDER.filter(
+              (bucket) => groupedUpcoming[bucket]?.length,
+            ).map((bucket) => (
+              <div key={bucket}>
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold mb-2 ${BUCKET_COLORS[bucket]}`}
+                >
+                  {bucket}
+                </span>
+                <div className="overflow-x-auto">
+                  <div className="min-w-125">
+                    <div className="grid grid-cols-[2fr_2fr_1.2fr] gap-2 border-b border-gray-100 pb-2">
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Cliente
+                      </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Servicio
+                      </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Horario
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {groupedUpcoming[bucket].map((appt) => (
+                        <div
+                          key={appt.appointmentId}
+                          className="grid grid-cols-[2fr_2fr_1.2fr] gap-2 hover:bg-gray-50/50 transition-colors"
+                        >
+                          <span className="p-3 text-sm font-semibold text-primary">
+                            {appt.customer?.name || "—"}
+                          </span>
+                          <span className="p-3 text-sm text-gray-600">
+                            {appt.service?.name || "—"}
+                          </span>
+                          <span className="p-3 text-sm text-gray-600">
+                            {formatTime(appt.startTime || appt.start_time)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

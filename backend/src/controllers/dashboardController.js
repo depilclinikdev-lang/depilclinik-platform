@@ -258,22 +258,21 @@ export const getMyMonthlyCount = async (req, res) => {
 // Próximas citas asignadas al colaborador (no completadas ni canceladas)
 export const getMyUpcomingAppointments = async (req, res) => {
   try {
-    const startOfTomorrow = new Date();
-    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-    startOfTomorrow.setHours(0, 0, 0, 0);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
     const appointments = await Appointment.findAll({
       where: {
         userId: req.user.id,
         status: { [Op.notIn]: ["Completada", "Cancelada"] },
-        startTime: { [Op.gte]: startOfTomorrow }, // 👈 Solo de mañana en adelante
+        startTime: { [Op.gte]: startOfToday },
       },
       include: [
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
         { model: Service, as: "service", attributes: ["name"] },
       ],
       order: [["startTime", "ASC"]],
-      limit: 8,
+      limit: 12,
     });
 
     res.status(200).json(appointments);
