@@ -12,6 +12,8 @@ import {
   restrictTo,
   canAttendAppointment,
 } from "../middlewares/auth.js";
+import { createHistoricalAssessment } from "../controllers/assessmentController.js";
+import { updateAssessment } from "../controllers/assessmentController.js";
 
 const router = express.Router();
 
@@ -44,6 +46,13 @@ router.post(
   canAttendAppointment,
   createAssessment,
 );
+router.post(
+  "/historical",
+  protect,
+  restrictTo("Administrador"),
+  createHistoricalAssessment,
+);
+router.put("/:id", protect, restrictTo("Administrador"), updateAssessment);
 
 router.get("/:id", protect, restrictTo("Administrador"), getAssessmentById);
 

@@ -58,9 +58,35 @@ const LaserAssessmentForm = ({
   customerName,
   pendingPhotos = {},
   onPhotoSelect,
+  initialData = null,
+  isEditMode = false,
+  embedded = false,
 }) => {
+  const buildStateFromAssessment = (assessment) => {
+    if (!assessment) return initialState;
+
+    return {
+      general: {
+        referredMedia: assessment.referredMedia || "",
+        hasDiseases: Boolean(assessment.hasDiseases),
+        diseasesNotes: assessment.diseasesNotes || "",
+        hasMedications: Boolean(assessment.hasMedications),
+        medicationsNotes: assessment.medicationsNotes || "",
+        hasTattoos: Boolean(assessment.hasTattoos),
+        tattoosNotes: assessment.tattoosNotes || "",
+        hasAllergies: Boolean(assessment.hasAllergies),
+        allergiesNotes: assessment.allergiesNotes || "",
+        hasAestheticProcedures: Boolean(assessment.hasAestheticProcedures),
+        aestheticsProceduresNotes: assessment.aestheticsProceduresNotes || "",
+        hasSignedConsent: Boolean(assessment.hasSignedConsent),
+      },
+      selectedAreas: assessment.areasOfInterest?.map((a) => a.areaName) || [],
+      clinicalConditions: assessment.clinicalConditions || {},
+    };
+  };
+
   const [activeTab, setActiveTab] = useState("Información");
-  const [form, setForm] = useState(initialState);
+  const [form, setForm] = useState(() => buildStateFromAssessment(initialData));
 
   const updateGeneral = (field, value) => {
     setForm((prev) => ({
@@ -103,7 +129,13 @@ const LaserAssessmentForm = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="sticky top-16 z-10 -mx-8 px-8 pt-2 pb-3 bg-white border-b border-gray-100">
+      <div
+        className={
+          embedded
+            ? "sticky top-0 z-10 -mx-6 px-6 pt-0 pb-3 bg-white border-b border-gray-100"
+            : "sticky top-16 z-10 -mx-8 px-8 pt-2 pb-3 bg-white border-b border-gray-100"
+        }
+      >
         {customerName && (
           <p className="text-xs text-accent mb-2">
             Cliente:{" "}
@@ -330,7 +362,11 @@ const LaserAssessmentForm = ({
           disabled={saving}
           className="px-8 py-2.5 rounded-full bg-linear-to-r from-depil to-secondary text-white font-bold text-sm hover:opacity-90 transition-opacity cursor-pointer shadow-md disabled:opacity-50"
         >
-          {saving ? "Guardando..." : "Guardar Expediente"}
+          {saving
+            ? "Guardando..."
+            : isEditMode
+              ? "Guardar Cambios"
+              : "Guardar Expediente"}
         </button>
       </div>
     </div>

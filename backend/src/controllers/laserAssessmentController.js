@@ -8,6 +8,7 @@ import { sanitizeEmptyStrings } from "../utils/sanitize.js";
 import { createPendingPhotosForAssessment } from "./assessmentPhotoController.js";
 import { syncPackageSessionOnCompletion } from "./packageController.js";
 import Service from "../models/Service.js";
+import User from "../models/User.js";
 
 const fullIncludes = [
   { model: LaserAreaOfInterest, as: "areasOfInterest" },
@@ -25,6 +26,8 @@ const fullIncludes = [
       },
     ],
   },
+  { model: Service, as: "service", attributes: ["serviceId", "name", "brand"] },
+  { model: User, as: "performedBy", attributes: ["id", "name"] },
 ];
 
 // Obtiene el expediente Depilclinik más reciente de un cliente
@@ -257,6 +260,205 @@ export const getLaserAssessmentById = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while fetching laser assessment",
+      error: error.message,
+    });
+  }
+};
+
+export const createHistoricalLaserAssessment = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const { customerId, serviceId, performedByUserId, assessmentDate } =
+      req.body;
+
+    if (!customerId || !serviceId || !assessmentDate) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "Cliente, servicio y fecha de la revisión son obligatorios",
+      });
+    }
+
+    const parsedDate = new Date(assessmentDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    if (isNaN(parsedDate.getTime()) || parsedDate > today) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "La fecha no puede ser posterior al día de hoy",
+      });
+    }
+
+    const service = await Service.findOne({
+      where: { serviceId, isActive: true },
+      transaction: t,
+    });
+    if (!service) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "El servicio seleccionado no es válido o está inactivo",
+      });
+    }
+
+    const sanitizedBody = sanitizeEmptyStrings(req.body);
+    const { general, areasOfInterest, clinicalConditions } = sanitizedBody;
+
+    if (!general || !general.referredMedia) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "El medio de referencia es obligatorio",
+      });
+    }
+
+    const assessment = await LaserMedicalAssessment.create(
+      {
+        customerId,
+        appointmentId: null,
+        serviceId,
+        performedByUserId: performedByUserId || null,
+        ...general,
+        filledByUserId: req.user.id,
+        filledAt: new Date(),
+        lockedForCollaborator: false,
+        createdAt: parsedDate,
+      },
+      { transaction: t },
+    );
+
+    if (areasOfInterest?.length > 0) {
+      await LaserAreaOfInterest.bulkCreate(
+        areasOfInterest.map((areaName) => ({
+          areaName,
+          laserAssessmentId: assessment.laserAssessmentId,
+        })),
+        { transaction: t },
+      );
+    }
+
+    if (clinicalConditions) {
+      await LaserClinicalCondition.create(
+        {
+          ...clinicalConditions,
+          laserAssessmentId: assessment.laserAssessmentId,
+        },
+        { transaction: t },
+      );
+    }
+
+    await createPendingPhotosForAssessment(
+      { laserAssessmentId: assessment.laserAssessmentId },
+      t,
+    );
+
+    await t.commit();
+
+    const fullAssessment = await LaserMedicalAssessment.findByPk(
+      assessment.laserAssessmentId,
+      { include: fullIncludes },
+    );
+
+    res.status(201).json(fullAssessment);
+  } catch (error) {
+    await t.rollback();
+    console.error("Error creating historical laser assessment:", error);
+    res.status(500).json({
+      message: "Server error while creating historical laser assessment",
+      error: error.message,
+    });
+  }
+};
+
+export const updateLaserAssessment = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const { id } = req.params;
+    const existing = await LaserMedicalAssessment.findByPk(id, {
+      transaction: t,
+    });
+
+    if (!existing) {
+      await t.rollback();
+      return res.status(404).json({ message: "Expediente no encontrado" });
+    }
+
+    const sanitizedBody = sanitizeEmptyStrings(req.body);
+    const {
+      general,
+      serviceId,
+      performedByUserId,
+      assessmentDate,
+      areasOfInterest,
+      clinicalConditions,
+    } = sanitizedBody;
+
+    const updatePayload = { ...(general || {}) };
+
+    if (serviceId !== undefined) updatePayload.serviceId = serviceId;
+    if (performedByUserId !== undefined)
+      updatePayload.performedByUserId = performedByUserId;
+
+    if (assessmentDate) {
+      const parsedDate = new Date(assessmentDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (isNaN(parsedDate.getTime()) || parsedDate > today) {
+        await t.rollback();
+        return res.status(400).json({
+          message: "La fecha no puede ser posterior al día de hoy",
+        });
+      }
+      updatePayload.createdAt = parsedDate;
+    }
+
+    await existing.update(updatePayload, { transaction: t });
+
+    if (areasOfInterest) {
+      await LaserAreaOfInterest.destroy({
+        where: { laserAssessmentId: id },
+        transaction: t,
+      });
+      if (areasOfInterest.length > 0) {
+        await LaserAreaOfInterest.bulkCreate(
+          areasOfInterest.map((areaName) => ({
+            areaName,
+            laserAssessmentId: id,
+          })),
+          { transaction: t },
+        );
+      }
+    }
+
+    if (clinicalConditions) {
+      const existingConditions = await LaserClinicalCondition.findOne({
+        where: { laserAssessmentId: id },
+        transaction: t,
+      });
+      if (existingConditions) {
+        await existingConditions.update(clinicalConditions, {
+          transaction: t,
+        });
+      } else {
+        await LaserClinicalCondition.create(
+          { ...clinicalConditions, laserAssessmentId: id },
+          { transaction: t },
+        );
+      }
+    }
+
+    await t.commit();
+
+    const fullAssessment = await LaserMedicalAssessment.findByPk(id, {
+      include: fullIncludes,
+    });
+
+    res.status(200).json(fullAssessment);
+  } catch (error) {
+    await t.rollback();
+    console.error("Error updating laser assessment:", error);
+    res.status(500).json({
+      message: "Server error while updating laser assessment",
       error: error.message,
     });
   }

@@ -10,6 +10,7 @@ import PatientMedicalBackground from "./PatientMedicalBackground.js";
 import PatientAllergiesRecord from "./PatientAllergiesRecord.js";
 import BodyEvaluation from "./BodyEvaluation.js";
 import FacialEvaluation from "./FacialEvaluation.js";
+import Service from "./Service.js";
 
 const MedicalAssessment = sequelize.define(
   "MedicalAssessment",
@@ -29,6 +30,11 @@ const MedicalAssessment = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: "appointment_id",
+    },
+    serviceId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "service_id",
     },
     consultationReason: {
       type: DataTypes.TEXT,
@@ -112,6 +118,11 @@ const MedicalAssessment = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: "filled_by_user_id",
+    },
+    performedByUserId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "performed_by_user_id",
     },
     filledAt: {
       type: DataTypes.DATE,
@@ -231,6 +242,11 @@ MedicalAssessment.hasOne(FacialEvaluation, {
 FacialEvaluation.belongsTo(MedicalAssessment, {
   foreignKey: "assessmentId",
   as: "assessment",
+});
+
+MedicalAssessment.belongsTo(Service, {
+  foreignKey: "serviceId",
+  as: "service",
 });
 
 export default MedicalAssessment;

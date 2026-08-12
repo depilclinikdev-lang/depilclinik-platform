@@ -86,6 +86,7 @@ CREATE TABLE Medical_Assessments (
     assessment_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     appointment_id INT NULL,
+    service_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     consultation_reason TEXT NOT NULL,
     onset_date_details VARCHAR(250) NULL,
@@ -102,11 +103,14 @@ CREATE TABLE Medical_Assessments (
     has_signed_consent BOOLEAN NOT NULL DEFAULT FALSE,
     consent_pdf_url VARCHAR(512) NULL,
     filled_by_user_id INT NULL,
+    performed_by_user_id INT NULL,
     filled_at TIMESTAMP NULL,
     locked_for_collaborator BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_assessments_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
     CONSTRAINT fk_assessments_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
-    CONSTRAINT fk_assessments_filled_by FOREIGN KEY (filled_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+    CONSTRAINT fk_assessments_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL, 
+    CONSTRAINT fk_assessments_filled_by FOREIGN KEY (filled_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_assessments_performed_by FOREIGN KEY (performed_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE assessment_professional_treatments (
@@ -400,6 +404,7 @@ CREATE TABLE Laser_Medical_Assessments (
     laser_assessment_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     appointment_id INT NULL,
+    service_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     referred_media ENUM('Instagram', 'Facebook', 'TikTok', 'Recomendacion', 'Por su cuenta', 'Otro') NOT NULL,
     has_diseases BOOLEAN DEFAULT FALSE,
@@ -412,14 +417,17 @@ CREATE TABLE Laser_Medical_Assessments (
     allergies_notes TEXT NULL,
     has_aesthetic_procedures BOOLEAN DEFAULT FALSE,
     aesthetics_procedures_notes TEXT NULL,
-    has_signed_consent BOOLEAN DEFAULT FALSE,
+    has_signed_consent BOOLEAN NOT NULL DEFAULT FALSE,
     consent_pdf_url VARCHAR(512) NULL,
     filled_by_user_id INT NULL,
+    performed_by_user_id INT NULL
     filled_at TIMESTAMP NULL,
     locked_for_collaborator BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_laser_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
     CONSTRAINT fk_laser_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
-    CONSTRAINT fk_laser_filled_by FOREIGN KEY (filled_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+    CONSTRAINT fk_laser_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL,
+    CONSTRAINT fk_laser_filled_by FOREIGN KEY (filled_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_laser_performed_by FOREIGN KEY (performed_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE Laser_Areas_Of_Interest (

@@ -2,12 +2,22 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 import { LuArrowLeft } from "react-icons/lu";
 import AssessmentSummaryView from "../components/clinicalRecord/AssessmentSummaryView";
+import ModelhaAssessmentForm from "../components/clinicalRecord/ModelhaAssessmentForm";
+import LaserAssessmentForm from "../components/clinicalRecord/LaserAssessmentForm";
+import {
+  showLoading,
+  closeAlert,
+  showSuccess,
+  showError,
+} from "../utils/alerts";
 
 const LatestAssessmentPage = ({ customer, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [assessment, setAssessment] = useState(null);
   const [brand, setBrand] = useState("Modelha DK");
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const formatAssessmentDate = (assessmentObj) => {
     const rawDate =
@@ -55,6 +65,39 @@ const LatestAssessmentPage = ({ customer, onBack }) => {
 
     fetchLatest();
   }, [customer.customerId, brand]);
+  const handleUpdateAssessment = async (formPayload) => {
+    setSaving(true);
+    showLoading("Guardando cambios...");
+    try {
+      const idKey =
+        brand === "Modelha DK" ? "assessmentId" : "laserAssessmentId";
+      const endpoint =
+        brand === "Modelha DK"
+          ? `/assessments/${assessment[idKey]}`
+          : `/laser-assessments/${assessment[idKey]}`;
+
+      await api.put(endpoint, formPayload);
+
+      closeAlert();
+      showSuccess("Expediente actualizado");
+      setIsEditing(false);
+
+      const refreshEndpoint =
+        brand === "Modelha DK"
+          ? `/assessments/customer/${customer.customerId}/latest`
+          : `/laser-assessments/customer/${customer.customerId}/latest`;
+      const response = await api.get(refreshEndpoint);
+      setAssessment(response.data);
+    } catch (err) {
+      closeAlert();
+      showError(
+        "Error",
+        err.response?.data?.message || "No se pudo actualizar el expediente",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
@@ -113,6 +156,52 @@ const LatestAssessmentPage = ({ customer, onBack }) => {
       </div>
     </div>
   );
+  <AssessmentSummaryView
+    assessment={assessment}
+    onEdit={() => setIsEditing(true)}
+  />;
+  {
+    isEditing && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[92vh] flex flex-col text-left">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
+            <h2 className="text-lg font-bold text-primary">
+              Editar Expediente — {customer.name}
+            </h2>
+            <button
+              onClick={() => setIsEditing(false)}
+              className="text-accent hover:text-primary text-sm font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="p-8 overflow-y-auto flex-1">
+            {brand === "Modelha DK" ? (
+              <ModelhaAssessmentForm
+                onSubmit={handleUpdateAssessment}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+                initialData={assessment}
+                isEditMode
+              />
+            ) : (
+              <LaserAssessmentForm
+                onSubmit={handleUpdateAssessment}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+                initialData={assessment}
+                isEditMode
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default LatestAssessmentPage;

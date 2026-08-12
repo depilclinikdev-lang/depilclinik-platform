@@ -68,7 +68,7 @@ const booleanTags = (obj, labelMap) => {
     .map(([, label]) => label);
 };
 
-const AssessmentSummaryView = ({ assessment }) => {
+const AssessmentSummaryView = ({ assessment, onEdit }) => {
   if (!assessment) {
     return (
       <p className="text-sm text-gray-400 text-center py-8">
@@ -219,6 +219,17 @@ const AssessmentSummaryView = ({ assessment }) => {
 
   return (
     <div className="flex flex-col gap-4">
+      {onEdit && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => onEdit(assessment)}
+            className="px-4 py-2 rounded-full bg-secondary/10 text-secondary text-xs font-bold hover:bg-secondary/20 transition-colors cursor-pointer"
+          >
+            Editar Expediente
+          </button>
+        </div>
+      )}
+
       <Section title="General">
         <Field
           label="Motivo de consulta"
@@ -230,6 +241,18 @@ const AssessmentSummaryView = ({ assessment }) => {
         <Field label="Tipo de sangre" value={assessment.bloodType} />
         <Field label="Tiempo radicando" value={assessment.residenceTime} />
         <Field label="Dónde nos conoció" value={assessment.referredMedia} />
+        <Field
+          label="Servicio realizado"
+          value={
+            assessment.service?.name ||
+            assessment.appointment?.service?.name ||
+            null
+          }
+        />
+        <Field
+          label="Atendido por"
+          value={assessment.performedBy?.name || null}
+        />
         <Field
           label="Temperatura"
           value={assessment.temperatureC && `${assessment.temperatureC} °C`}
@@ -281,7 +304,6 @@ const AssessmentSummaryView = ({ assessment }) => {
         )}
       </Section>
 
-      {/* 📸 Nueva sección de Fotografías con soporte multi-marca */}
       <Section title="Fotografías" defaultOpen={false}>
         <AssessmentPhotosGallery
           assessmentId={assessment.assessmentId}

@@ -49,7 +49,7 @@ const QuickCustomerModal = ({ isOpen, onClose, onCreated }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-80 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-left">
         <div className="flex justify-between items-start mb-1">
           <h2 className="text-lg font-bold text-primary">Registro Rápido</h2>

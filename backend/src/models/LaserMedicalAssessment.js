@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
 import LaserAreaOfInterest from "./LaserAreaOfInterest.js";
 import LaserClinicalCondition from "./LaserClinicalCondition.js";
+import Service from "./Service.js";
 
 const LaserMedicalAssessment = sequelize.define(
   "LaserMedicalAssessment",
@@ -21,6 +22,11 @@ const LaserMedicalAssessment = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: "appointment_id",
+    },
+    serviceId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "service_id",
     },
     referredMedia: {
       type: DataTypes.ENUM(
@@ -99,6 +105,11 @@ const LaserMedicalAssessment = sequelize.define(
       allowNull: true,
       field: "filled_by_user_id",
     },
+    performedByUserId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "performed_by_user_id",
+    },
     filledAt: {
       type: DataTypes.DATE,
       allowNull: true,
@@ -137,6 +148,10 @@ LaserMedicalAssessment.hasOne(LaserClinicalCondition, {
 LaserClinicalCondition.belongsTo(LaserMedicalAssessment, {
   foreignKey: "laserAssessmentId",
   as: "laserAssessment",
+});
+LaserMedicalAssessment.belongsTo(Service, {
+  foreignKey: "serviceId",
+  as: "service",
 });
 
 export default LaserMedicalAssessment;

@@ -1,7 +1,16 @@
-import { useEffect, useState } from "react";
-import api from "../services/api";
+import { useEffect, useState, useCallback } from "react";
 import { LuArrowLeft, LuCalendar, LuFileText, LuClock } from "react-icons/lu";
+import api from "../services/api";
 import AssessmentSummaryView from "../components/clinicalRecord/AssessmentSummaryView";
+import HistoricalAssessmentSetupModal from "../components/HistoricalAssessmentSetupModal";
+import ModelhaAssessmentForm from "../components/clinicalRecord/ModelhaAssessmentForm";
+import LaserAssessmentForm from "../components/clinicalRecord/LaserAssessmentForm";
+import {
+  showLoading,
+  closeAlert,
+  showSuccess,
+  showError,
+} from "../utils/alerts";
 
 const BRANDS = ["Modelha DK", "Depilclinik"];
 
@@ -11,6 +20,10 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
   const [error, setError] = useState("");
   const [history, setHistory] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [setupData, setSetupData] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const idKey = brand === "Modelha DK" ? "assessmentId" : "laserAssessmentId";
 
@@ -36,43 +49,112 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
     });
   };
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true);
-      setError("");
-      setSelectedId(null);
-      try {
-        const endpoint =
-          brand === "Modelha DK"
-            ? `/assessments/customer/${customer.customerId}/history`
-            : `/laser-assessments/customer/${customer.customerId}/history`;
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setSelectedId(null);
+    try {
+      const endpoint =
+        brand === "Modelha DK"
+          ? `/assessments/customer/${customer.customerId}/history`
+          : `/laser-assessments/customer/${customer.customerId}/history`;
 
-        const response = await api.get(endpoint);
-        const sorted = [...(response.data || [])].sort(
-          (a, b) =>
-            new Date(b.createdAt || b.created_at) -
-            new Date(a.createdAt || a.created_at),
-        );
-        setHistory(sorted);
-        if (sorted.length > 0) {
-          setSelectedId(sorted[0][idKey]);
-        }
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            "No se pudo cargar el historial de este cliente.",
-        );
-      } finally {
-        setLoading(false);
+      const response = await api.get(endpoint);
+      const sorted = [...(response.data || [])].sort(
+        (a, b) =>
+          new Date(b.createdAt || b.created_at) -
+          new Date(a.createdAt || a.created_at),
+      );
+      setHistory(sorted);
+      if (sorted.length > 0) {
+        setSelectedId(sorted[0][idKey]);
       }
-    };
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "No se pudo cargar el historial de este cliente.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [customer.customerId, brand, idKey]);
 
+  useEffect(() => {
     fetchHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer.customerId, brand]);
+  }, [fetchHistory]);
 
   const selectedAssessment = history.find((h) => h[idKey] === selectedId);
   const totalSessions = history.length;
+
+  const handleConfirmSetup = (data) => {
+    setSetupData(data);
+    setIsSetupModalOpen(false);
+    setIsFormOpen(true);
+  };
+
+  const handleSaveHistorical = async (formPayload) => {
+    setSaving(true);
+    showLoading("Guardando expediente histórico...");
+    try {
+      const endpoint =
+        setupData.brand === "Modelha DK"
+          ? "/assessments/historical"
+          : "/laser-assessments/historical";
+
+      await api.post(endpoint, {
+        ...formPayload,
+        customerId: customer.customerId,
+        serviceId: setupData.serviceId,
+        performedByUserId: setupData.performedByUserId,
+        assessmentDate: setupData.assessmentDate,
+      });
+
+      closeAlert();
+      showSuccess("Expediente histórico guardado");
+      setIsFormOpen(false);
+      setSetupData(null);
+
+      if (setupData.brand === brand) {
+        fetchHistory();
+      }
+    } catch (err) {
+      closeAlert();
+      showError(
+        "Error",
+        err.response?.data?.message || "No se pudo guardar el expediente",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const [editingAssessment, setEditingAssessment] = useState(null);
+
+  const handleUpdateAssessment = async (formPayload) => {
+    setSaving(true);
+    showLoading("Guardando cambios...");
+    try {
+      const endpoint =
+        brand === "Modelha DK"
+          ? `/assessments/${editingAssessment[idKey]}`
+          : `/laser-assessments/${editingAssessment[idKey]}`;
+
+      await api.put(endpoint, formPayload);
+
+      closeAlert();
+      showSuccess("Expediente actualizado");
+      setEditingAssessment(null);
+      fetchHistory();
+    } catch (err) {
+      closeAlert();
+      showError(
+        "Error",
+        err.response?.data?.message || "No se pudo actualizar el expediente",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
@@ -93,20 +175,29 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        {BRANDS.map((b) => (
-          <button
-            key={b}
-            onClick={() => setBrand(b)}
-            className={`px-4 py-2 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-              brand === b
-                ? "bg-linear-to-r from-secondary to-depil text-white"
-                : "border border-borderClinik text-primary hover:bg-gray-50"
-            }`}
-          >
-            {b}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-2">
+          {BRANDS.map((b) => (
+            <button
+              key={b}
+              onClick={() => setBrand(b)}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                brand === b
+                  ? "bg-linear-to-r from-secondary to-depil text-white"
+                  : "border border-borderClinik text-primary hover:bg-gray-50"
+              }`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setIsSetupModalOpen(true)}
+          className="px-4 py-2 rounded-full bg-primary text-white text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+        >
+          + Registrar Expediente Histórico
+        </button>
       </div>
 
       {loading ? (
@@ -206,7 +297,10 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
                     </span>
                   )}
                 </div>
-                <AssessmentSummaryView assessment={selectedAssessment} />
+                <AssessmentSummaryView
+                  assessment={selectedAssessment}
+                  onEdit={setEditingAssessment}
+                />
               </>
             ) : (
               <p className="text-sm text-accent text-center py-8">
@@ -216,8 +310,99 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
           </div>
         </div>
       )}
+
+      <HistoricalAssessmentSetupModal
+        isOpen={isSetupModalOpen}
+        onClose={() => setIsSetupModalOpen(false)}
+        onConfirm={handleConfirmSetup}
+        initialBrand={brand}
+      />
+
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col text-left">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
+              <h2 className="text-lg font-bold text-primary">
+                Expediente Histórico — {customer.name}
+              </h2>
+              <button
+                onClick={() => setIsFormOpen(false)}
+                className="text-accent hover:text-primary text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {setupData?.brand === "Modelha DK" ? (
+                <ModelhaAssessmentForm
+                  onSubmit={handleSaveHistorical}
+                  saving={saving}
+                  customerName={customer.name}
+                  pendingPhotos={{}}
+                  onPhotoSelect={() => {}}
+                  embedded
+                />
+              ) : (
+                <LaserAssessmentForm
+                  onSubmit={handleSaveHistorical}
+                  saving={saving}
+                  customerName={customer.name}
+                  pendingPhotos={{}}
+                  onPhotoSelect={() => {}}
+                  embedded
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingAssessment && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col text-left">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
+              <h2 className="text-lg font-bold text-primary">
+                Editar Expediente — {customer.name}
+              </h2>
+              <button
+                onClick={() => setEditingAssessment(null)}
+                className="text-accent hover:text-primary text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {brand === "Modelha DK" ? (
+                <ModelhaAssessmentForm
+                  onSubmit={handleUpdateAssessment}
+                  saving={saving}
+                  customerName={customer.name}
+                  pendingPhotos={{}}
+                  onPhotoSelect={() => {}}
+                  initialData={editingAssessment}
+                  isEditMode
+                  embedded
+                />
+              ) : (
+                <LaserAssessmentForm
+                  onSubmit={handleUpdateAssessment}
+                  saving={saving}
+                  customerName={customer.name}
+                  pendingPhotos={{}}
+                  onPhotoSelect={() => {}}
+                  initialData={editingAssessment}
+                  isEditMode
+                  embedded
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+CustomerAssessmentHistoryPage;
 
 export default CustomerAssessmentHistoryPage;

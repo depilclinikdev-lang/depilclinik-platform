@@ -6,6 +6,8 @@ import {
   createLaserAssessment,
   getAllLaserAssessments,
   getLaserAssessmentById,
+  createHistoricalLaserAssessment,
+  updateLaserAssessment,
 } from "../controllers/laserAssessmentController.js";
 import {
   protect,
@@ -14,6 +16,15 @@ import {
 } from "../middlewares/auth.js";
 
 const router = express.Router();
+
+router.post(
+  "/historical",
+  protect,
+  restrictTo("Administrador"),
+  createHistoricalLaserAssessment,
+);
+
+router.put("/:id", protect, restrictTo("Administrador"), updateLaserAssessment);
 
 router.get(
   "/customer/:customerId/latest",

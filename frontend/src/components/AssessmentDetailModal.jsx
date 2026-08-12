@@ -7,6 +7,7 @@ const AssessmentDetailModal = ({
   assessment,
   onClose,
   onViewFullHistory,
+  onEdit,
 }) => {
   if (!isOpen) return null;
 
@@ -57,7 +58,7 @@ const AssessmentDetailModal = ({
         </div>
         <div className="p-6 overflow-y-auto flex-1">
           {assessment ? (
-            <AssessmentSummaryView assessment={assessment} />
+            <AssessmentSummaryView assessment={assessment} onEdit={onEdit} />
           ) : (
             <p className="text-sm text-accent text-center py-8">Cargando...</p>
           )}

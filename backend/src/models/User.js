@@ -149,5 +149,22 @@ AssessmentPhoto.belongsTo(User, {
   foreignKey: "uploadedByUserId",
   as: "uploadedBy",
 });
+User.hasMany(MedicalAssessment, {
+  foreignKey: "performedByUserId",
+  as: "performedMedicalAssessments",
+});
+MedicalAssessment.belongsTo(User, {
+  foreignKey: "performedByUserId",
+  as: "performedBy",
+});
+
+User.hasMany(LaserMedicalAssessment, {
+  foreignKey: "performedByUserId",
+  as: "performedLaserAssessments",
+});
+LaserMedicalAssessment.belongsTo(User, {
+  foreignKey: "performedByUserId",
+  as: "performedBy",
+});
 
 export default User;
