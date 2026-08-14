@@ -132,8 +132,8 @@ const LaserAssessmentForm = ({
       <div
         className={
           embedded
-            ? "sticky top-0 z-10 -mx-6 px-6 pt-0 pb-3 bg-white border-b border-gray-100"
-            : "sticky top-16 z-10 -mx-8 px-8 pt-2 pb-3 bg-white border-b border-gray-100"
+            ? "px-6 pt-0 pb-3 bg-white border-b border-gray-100"
+            : "-mx-8 -mt-8 px-8 pt-6 pb-3 bg-white border-b border-gray-100 rounded-t-2xl mb-6"
         }
       >
         {customerName && (

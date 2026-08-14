@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import { LuSearch, LuFileText } from "react-icons/lu";
-import AssessmentDetailModal from "../components/AssessmentDetailModal";
 import CustomerAssessmentHistoryPage from "./CustomerAssessmentHistoryPage";
-import ModelhaAssessmentForm from "../components/clinicalRecord/ModelhaAssessmentForm";
-import LaserAssessmentForm from "../components/clinicalRecord/LaserAssessmentForm";
-import {
-  showLoading,
-  closeAlert,
-  showSuccess,
-  showError,
-} from "../utils/alerts";
 
 const AssessmentHistoryPage = () => {
   const [modelhaRecords, setModelhaRecords] = useState([]);
@@ -19,13 +10,7 @@ const AssessmentHistoryPage = () => {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [viewingAssessment, setViewingAssessment] = useState(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
   const [viewingCustomerHistory, setViewingCustomerHistory] = useState(null);
-
-  const [editingAssessment, setEditingAssessment] = useState(null);
-  const [editingBrand, setEditingBrand] = useState(null);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -48,30 +33,6 @@ const AssessmentHistoryPage = () => {
 
     fetchAll();
   }, []);
-
-  const handleOpenAssessmentDetail = async (record) => {
-    setLoadingDetail(true);
-    try {
-      const endpoint =
-        record.brand === "Modelha DK"
-          ? `/assessments/${record.rawId}`
-          : `/laser-assessments/${record.rawId}`;
-
-      const response = await api.get(endpoint);
-      setViewingAssessment(response.data);
-      setEditingBrand(record.brand); // 👈 guarda la marca aquí
-    } catch (err) {
-      console.error(err);
-      setError("No se pudo cargar el expediente seleccionado.");
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
-
-  const handleViewFullHistory = (customer) => {
-    setViewingAssessment(null);
-    setViewingCustomerHistory(customer);
-  };
 
   const combined = [
     ...modelhaRecords.map((r) => ({
@@ -126,46 +87,6 @@ const AssessmentHistoryPage = () => {
       />
     );
   }
-  const handleEditFromModal = (assessment) => {
-    setEditingBrand(viewingAssessment?.marca || null);
-    setEditingAssessment(assessment);
-    setViewingAssessment(null);
-  };
-
-  const handleUpdateAssessment = async (formPayload) => {
-    setSaving(true);
-    showLoading("Guardando cambios...");
-    try {
-      const idKey =
-        editingBrand === "Modelha DK" ? "assessmentId" : "laserAssessmentId";
-      const endpoint =
-        editingBrand === "Modelha DK"
-          ? `/assessments/${editingAssessment[idKey]}`
-          : `/laser-assessments/${editingAssessment[idKey]}`;
-
-      await api.put(endpoint, formPayload);
-
-      closeAlert();
-      showSuccess("Expediente actualizado");
-      setEditingAssessment(null);
-
-      // Refresca las listas para que el resumen actualizado se vea
-      const [modelhaRes, laserRes] = await Promise.all([
-        api.get("/assessments/all"),
-        api.get("/laser-assessments/all"),
-      ]);
-      setModelhaRecords(modelhaRes.data || []);
-      setLaserRecords(laserRes.data || []);
-    } catch (err) {
-      closeAlert();
-      showError(
-        "Error",
-        err.response?.data?.message || "No se pudo actualizar el expediente",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
@@ -258,10 +179,11 @@ const AssessmentHistoryPage = () => {
                     </td>
                     <td className="p-4 text-right">
                       <button
-                        onClick={() => handleOpenAssessmentDetail(record)}
-                        disabled={loadingDetail}
-                        className="p-1.5 text-accent hover:text-depil transition-colors cursor-pointer disabled:opacity-40"
-                        title="Ver Expediente"
+                        onClick={() =>
+                          setViewingCustomerHistory(record.customer)
+                        }
+                        className="p-1.5 text-accent hover:text-depil transition-colors cursor-pointer"
+                        title="Ver Historial de Expedientes"
                       >
                         <LuFileText size={16} />
                       </button>
@@ -273,55 +195,6 @@ const AssessmentHistoryPage = () => {
           </div>
         )}
       </div>
-
-      <AssessmentDetailModal
-        isOpen={Boolean(viewingAssessment)}
-        assessment={viewingAssessment}
-        onClose={() => setViewingAssessment(null)}
-        onViewFullHistory={handleViewFullHistory}
-        onEdit={handleEditFromModal}
-      />
-
-      {editingAssessment && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[92vh] flex flex-col text-left">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
-              <h2 className="text-lg font-bold text-primary">
-                Editar Expediente — {editingAssessment.customer?.name || ""}
-              </h2>
-              <button
-                onClick={() => setEditingAssessment(null)}
-                className="text-accent hover:text-primary text-sm font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-8 overflow-y-auto flex-1">
-              {editingBrand === "Modelha DK" ? (
-                <ModelhaAssessmentForm
-                  onSubmit={handleUpdateAssessment}
-                  saving={saving}
-                  customerName={editingAssessment.customer?.name}
-                  pendingPhotos={{}}
-                  onPhotoSelect={() => {}}
-                  initialData={editingAssessment}
-                  isEditMode
-                />
-              ) : (
-                <LaserAssessmentForm
-                  onSubmit={handleUpdateAssessment}
-                  saving={saving}
-                  customerName={editingAssessment.customer?.name}
-                  pendingPhotos={{}}
-                  onPhotoSelect={() => {}}
-                  initialData={editingAssessment}
-                  isEditMode
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

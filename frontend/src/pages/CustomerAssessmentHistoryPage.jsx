@@ -23,6 +23,7 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [setupData, setSetupData] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingAssessment, setEditingAssessment] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const idKey = brand === "Modelha DK" ? "assessmentId" : "laserAssessmentId";
@@ -112,10 +113,13 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
       closeAlert();
       showSuccess("Expediente histórico guardado");
       setIsFormOpen(false);
+      const savedBrand = setupData.brand;
       setSetupData(null);
 
-      if (setupData.brand === brand) {
+      if (savedBrand === brand) {
         fetchHistory();
+      } else {
+        setBrand(savedBrand);
       }
     } catch (err) {
       closeAlert();
@@ -127,8 +131,6 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
       setSaving(false);
     }
   };
-
-  const [editingAssessment, setEditingAssessment] = useState(null);
 
   const handleUpdateAssessment = async (formPayload) => {
     setSaving(true);
@@ -155,6 +157,101 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
       setSaving(false);
     }
   };
+
+  // Vista de pantalla completa para CREAR un expediente histórico
+  if (isFormOpen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#eef2f5] flex flex-col overflow-hidden">
+        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 shadow-sm z-20">
+          <button
+            onClick={() => setIsFormOpen(false)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-borderClinik bg-white text-sm font-bold text-primary hover:bg-gray-50 hover:border-secondary transition-colors cursor-pointer shadow-sm"
+          >
+            <LuArrowLeft size={18} />
+            Regresar
+          </button>
+          <div className="w-px h-6 bg-gray-200" />
+          <span className="text-lg font-black tracking-wide text-primary">
+            Expediente Histórico
+            <span className="ml-2 text-sm font-semibold text-accent">
+              · {setupData?.brand}
+            </span>
+          </span>
+        </header>
+
+        <main className="flex-1 p-6 max-w-5xl w-full mx-auto overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 my-4">
+            {setupData?.brand === "Modelha DK" ? (
+              <ModelhaAssessmentForm
+                onSubmit={handleSaveHistorical}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+              />
+            ) : (
+              <LaserAssessmentForm
+                onSubmit={handleSaveHistorical}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (editingAssessment) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#eef2f5] flex flex-col overflow-hidden">
+        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 shadow-sm z-20">
+          <button
+            onClick={() => setEditingAssessment(null)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-borderClinik bg-white text-sm font-bold text-primary hover:bg-gray-50 hover:border-secondary transition-colors cursor-pointer shadow-sm"
+          >
+            <LuArrowLeft size={18} />
+            Regresar
+          </button>
+          <div className="w-px h-6 bg-gray-200" />
+          <span className="text-lg font-black tracking-wide text-primary">
+            Editar Expediente
+            <span className="ml-2 text-sm font-semibold text-accent">
+              · {brand}
+            </span>
+          </span>
+        </header>
+
+        <main className="flex-1 p-6 max-w-5xl w-full mx-auto overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 mt-6 mb-6">
+            {brand === "Modelha DK" ? (
+              <ModelhaAssessmentForm
+                onSubmit={handleUpdateAssessment}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+                initialData={editingAssessment}
+                isEditMode
+              />
+            ) : (
+              <LaserAssessmentForm
+                onSubmit={handleUpdateAssessment}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+                initialData={editingAssessment}
+                isEditMode
+              />
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
@@ -265,9 +362,11 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
                         <LuCalendar size={11} />
                         {formatShortDate(item.createdAt || item.created_at)}
                       </p>
-                      {item.appointment?.service?.name && (
+                      {(item.service?.name ||
+                        item.appointment?.service?.name) && (
                         <p className="text-[10px] text-secondary font-semibold truncate mt-0.5">
-                          {item.appointment.service.name}
+                          {item.service?.name ||
+                            item.appointment?.service?.name}
                         </p>
                       )}
                     </div>
@@ -291,9 +390,11 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
                       )}
                     </p>
                   </div>
-                  {selectedAssessment.appointment?.service?.name && (
+                  {(selectedAssessment.service?.name ||
+                    selectedAssessment.appointment?.service?.name) && (
                     <span className="shrink-0 px-3 py-1 rounded-full text-[11px] font-bold bg-secondary/10 text-secondary">
-                      {selectedAssessment.appointment.service.name}
+                      {selectedAssessment.service?.name ||
+                        selectedAssessment.appointment?.service?.name}
                     </span>
                   )}
                 </div>
@@ -317,92 +418,8 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
         onConfirm={handleConfirmSetup}
         initialBrand={brand}
       />
-
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col text-left">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
-              <h2 className="text-lg font-bold text-primary">
-                Expediente Histórico — {customer.name}
-              </h2>
-              <button
-                onClick={() => setIsFormOpen(false)}
-                className="text-accent hover:text-primary text-sm font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              {setupData?.brand === "Modelha DK" ? (
-                <ModelhaAssessmentForm
-                  onSubmit={handleSaveHistorical}
-                  saving={saving}
-                  customerName={customer.name}
-                  pendingPhotos={{}}
-                  onPhotoSelect={() => {}}
-                  embedded
-                />
-              ) : (
-                <LaserAssessmentForm
-                  onSubmit={handleSaveHistorical}
-                  saving={saving}
-                  customerName={customer.name}
-                  pendingPhotos={{}}
-                  onPhotoSelect={() => {}}
-                  embedded
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editingAssessment && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col text-left">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
-              <h2 className="text-lg font-bold text-primary">
-                Editar Expediente — {customer.name}
-              </h2>
-              <button
-                onClick={() => setEditingAssessment(null)}
-                className="text-accent hover:text-primary text-sm font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              {brand === "Modelha DK" ? (
-                <ModelhaAssessmentForm
-                  onSubmit={handleUpdateAssessment}
-                  saving={saving}
-                  customerName={customer.name}
-                  pendingPhotos={{}}
-                  onPhotoSelect={() => {}}
-                  initialData={editingAssessment}
-                  isEditMode
-                  embedded
-                />
-              ) : (
-                <LaserAssessmentForm
-                  onSubmit={handleUpdateAssessment}
-                  saving={saving}
-                  customerName={customer.name}
-                  pendingPhotos={{}}
-                  onPhotoSelect={() => {}}
-                  initialData={editingAssessment}
-                  isEditMode
-                  embedded
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
-
-CustomerAssessmentHistoryPage;
 
 export default CustomerAssessmentHistoryPage;
