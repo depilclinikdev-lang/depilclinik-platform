@@ -49,10 +49,16 @@ export const SelectField = ({ label, value, onChange, options }) => (
   </div>
 );
 
+const COLUMN_CLASSES = {
+  1: "grid-cols-1",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
+};
+
 export const CheckboxGrid = ({ items, values, onToggle, columns = 3 }) => (
   <div
-    className="grid gap-x-4 gap-y-2"
-    style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+    className={`grid gap-x-4 gap-y-2 ${COLUMN_CLASSES[columns] || COLUMN_CLASSES[3]}`}
   >
     {items.map(({ key, label }) => (
       <label
@@ -63,9 +69,9 @@ export const CheckboxGrid = ({ items, values, onToggle, columns = 3 }) => (
           type="checkbox"
           checked={Boolean(values[key])}
           onChange={() => onToggle(key)}
-          className="accent-secondary h-4 w-4 rounded border-borderClinik"
+          className="accent-secondary h-4 w-4 rounded border-borderClinik shrink-0"
         />
-        {label}
+        <span className="min-w-0">{label}</span>
       </label>
     ))}
   </div>
