@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { LuX, LuPlus, LuTrash2 } from "react-icons/lu";
 import api from "../services/api";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import {
   showLoading,
   closeAlert,
@@ -17,6 +18,7 @@ const CheckoutModal = ({
   onCompleted,
   onSkip,
 }) => {
+  useBackButtonClose(isOpen, onClose);
   const [services, setServices] = useState([]);
   const [items, setItems] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("Efectivo");

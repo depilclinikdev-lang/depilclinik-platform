@@ -137,11 +137,21 @@ export const buildTimeOptions = (startHour24 = 6, endHour24 = 22) => {
 export const TIME_OPTIONS = buildTimeOptions();
 
 export const TimeWheelDropdown = ({ label, value, onChange }) => (
-  <WheelDropdown
-    label={label}
-    value={value}
-    options={TIME_OPTIONS}
-    onChange={onChange}
-    icon={<LuClock size={14} className="text-secondary shrink-0" />}
-  />
+  <div className="flex flex-col gap-1">
+    <label className="text-[10px] font-bold text-primary uppercase tracking-wide">
+      {label}
+    </label>
+    <div className="relative">
+      <LuClock
+        size={14}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary shrink-0 pointer-events-none"
+      />
+      <input
+        type="time"
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full pl-9 pr-3 py-2 rounded-xl border border-borderClinik text-sm bg-white focus:outline-none focus:border-secondary cursor-text"
+      />
+    </div>
+  </div>
 );

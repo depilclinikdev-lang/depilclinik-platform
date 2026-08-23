@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { LuX, LuCopy, LuCheck, LuUserPlus } from "react-icons/lu";
 import api from "../services/api";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import {
   showLoading,
   closeAlert,
@@ -24,6 +25,7 @@ const emptyFormState = {
 
 const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
   const isEditMode = Boolean(employee);
+  useBackButtonClose(isOpen, handleCloseAndReset);
 
   const [formData, setFormData] = useState(emptyFormState);
   const [loading, setLoading] = useState(false);

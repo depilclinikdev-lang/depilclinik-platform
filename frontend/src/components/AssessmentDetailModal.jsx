@@ -1,6 +1,7 @@
 import React from "react";
 import { LuX, LuHistory } from "react-icons/lu";
 import AssessmentSummaryView from "./clinicalRecord/AssessmentSummaryView";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const AssessmentDetailModal = ({
   isOpen,
@@ -9,6 +10,7 @@ const AssessmentDetailModal = ({
   onViewFullHistory,
   onEdit,
 }) => {
+  useBackButtonClose(isOpen, onClose);
   if (!isOpen) return null;
 
   const formatDate = (dateValue) => {

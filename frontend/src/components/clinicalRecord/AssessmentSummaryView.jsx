@@ -134,6 +134,7 @@ const AssessmentSummaryView = ({ assessment, onEdit }) => {
     Waist: "Cintura",
     Hips: "Caderas",
     Thighs: "Muslos",
+    Legs: "Piernas",
     Arms: "Brazos",
     UpperBack: "Espalda A",
     LowerBack: "Espalda Baja",
@@ -403,7 +404,7 @@ const AssessmentSummaryView = ({ assessment, onEdit }) => {
               label="Talla"
               value={
                 assessment.bodyEvaluation.heightCm &&
-                `${assessment.bodyEvaluation.heightCm} cm`
+                `${assessment.bodyEvaluation.heightCm} m`
               }
             />
             <Field
@@ -443,7 +444,6 @@ const AssessmentSummaryView = ({ assessment, onEdit }) => {
             />
             <Field label="IMC" value={assessment.bodyEvaluation.bmi} />
           </div>
-
           <TagList
             label="Adiposidades localizadas"
             items={zoneTags(assessment.bodyEvaluation, "fat")}

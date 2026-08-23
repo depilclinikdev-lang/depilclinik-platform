@@ -15,6 +15,7 @@ import {
   showSuccess,
   showError,
 } from "../utils/alerts";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const initialFormState = {
   marca: "Modelha DK",
@@ -227,6 +228,7 @@ const AppointmentModal = ({ isOpen, onClose, onRefresh, appointment }) => {
       console.error(err);
     }
   };
+  useBackButtonClose(isOpen, onClose);
 
   if (!isOpen) return null;
 

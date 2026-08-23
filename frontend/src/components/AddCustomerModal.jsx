@@ -6,6 +6,7 @@ import {
   showSuccess,
   showError,
 } from "../utils/alerts";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const initialFormState = {
   name: "",
@@ -48,6 +49,7 @@ const AddCustomerModal = ({ isOpen, onClose, onRefresh, customer }) => {
       }
     }
   }, [isOpen, customer]);
+  useBackButtonClose(isOpen, onClose);
 
   if (!isOpen) return null;
 

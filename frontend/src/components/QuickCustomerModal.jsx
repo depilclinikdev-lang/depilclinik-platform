@@ -6,6 +6,7 @@ import {
   showSuccess,
   showError,
 } from "../utils/alerts";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const initialFormState = {
   name: "",
@@ -18,6 +19,8 @@ const QuickCustomerModal = ({ isOpen, onClose, onCreated }) => {
   const [formData, setFormData] = useState(initialFormState);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+useBackButtonClose(isOpen, onClose);
 
   if (!isOpen) return null;
 

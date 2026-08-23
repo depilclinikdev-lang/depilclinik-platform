@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextField,
   TextAreaField,
@@ -79,6 +79,7 @@ const ZONES = [
   "Waist",
   "Hips",
   "Thighs",
+  "Legs",
   "Arms",
   "UpperBack",
   "LowerBack",
@@ -89,6 +90,7 @@ const ZONE_LABELS = {
   Waist: "Cintura",
   Hips: "Caderas",
   Thighs: "Muslos",
+  Legs: "Piernas",
   Arms: "Brazos",
   UpperBack: "Espalda A",
   LowerBack: "Espalda Baja",
@@ -287,6 +289,23 @@ const ModelhaAssessmentForm = ({
 
   const [activeTab, setActiveTab] = useState("General");
   const [form, setForm] = useState(() => buildStateFromAssessment(initialData));
+
+  // --- Cálculo automático de IMC ---
+  useEffect(() => {
+    const weight = parseFloat(form.bodyEvaluation.weightKg);
+    const height = parseFloat(form.bodyEvaluation.heightCm);
+
+    if (weight > 0 && height > 0) {
+      const calculatedBmi = (weight / (height * height)).toFixed(1);
+      setForm((prev) => {
+        if (prev.bodyEvaluation.bmi === calculatedBmi) return prev;
+        return {
+          ...prev,
+          bodyEvaluation: { ...prev.bodyEvaluation, bmi: calculatedBmi },
+        };
+      });
+    }
+  }, [form.bodyEvaluation.weightKg, form.bodyEvaluation.heightCm]);
 
   const updateSection = (section, field, value) => {
     setForm((prev) => ({
@@ -746,22 +765,35 @@ const ModelhaAssessmentForm = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 ["weightKg", "Peso (kg)"],
-                ["heightCm", "Talla (cm)"],
+                ["heightCm", "Talla (m)"],
                 ["waistCm", "Cintura (cm)"],
                 ["abdomenCm", "Abdomen (cm)"],
                 ["hipCm", "Cadera (cm)"],
                 ["armsCm", "Brazos (cm)"],
                 ["legCm", "Pierna (cm)"],
-                ["bmi", "IMC"],
               ].map(([key, label]) => (
                 <TextField
                   key={key}
                   label={label}
                   type="number"
+                  step={key === "heightCm" ? "0.01" : undefined}
+                  placeholder={key === "heightCm" ? "Ej. 1.65" : undefined}
                   value={form.bodyEvaluation[key] || ""}
                   onChange={(v) => updateSection("bodyEvaluation", key, v)}
                 />
               ))}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-primary">
+                  IMC (automático)
+                </label>
+                <input
+                  type="text"
+                  value={form.bodyEvaluation.bmi || ""}
+                  readOnly
+                  disabled
+                  className="w-full p-2.5 rounded-lg border border-borderClinik text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                />
+              </div>
             </div>
           </div>
 

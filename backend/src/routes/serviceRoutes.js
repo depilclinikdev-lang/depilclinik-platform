@@ -6,6 +6,7 @@ import {
   updateService,
   deactivateService,
   reactivateService,
+  hideService,
 } from "../controllers/serviceController.js";
 import { protect, restrictTo } from "../middlewares/auth.js";
 import { cacheMiddleware } from "../middlewares/cache.js";
@@ -29,5 +30,6 @@ router.patch(
   restrictTo("Administrador"),
   reactivateService,
 );
+router.patch("/:id/hide", protect, restrictTo("Administrador"), hideService);
 
 export default router;

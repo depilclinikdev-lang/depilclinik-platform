@@ -1,6 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { LuFileCheck } from "react-icons/lu";
 import { STATUS_META } from "../constants/appointmentStatus";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import api from "../services/api";
+import {
+  showConfirm,
+  showLoading,
+  closeAlert,
+  showToast,
+  showError,
+} from "../utils/alerts";
 
 const AppointmentDetailsModal = ({
   isOpen,
@@ -8,7 +17,12 @@ const AppointmentDetailsModal = ({
   onClose,
   onAttend,
   onEdit,
+  onDeleted,
 }) => {
+  const [deleting, setDeleting] = useState(false);
+
+  useBackButtonClose(isOpen, onClose);
+
   if (!isOpen || !appointment) return null;
 
   const formatTime = (value) =>
@@ -36,6 +50,39 @@ const AppointmentDetailsModal = ({
 
   const canAttend =
     Boolean(onAttend) && !hasAssessment && appointment.status !== "Cancelada";
+
+  // Solo se puede eliminar (ocultar) una cita que todavía no tiene
+  // expediente clínico registrado — si ya se llenó el formulario, la
+  // única opción es editarla o cancelarla, nunca eliminarla.
+  const canDelete = !hasAssessment;
+
+  const handleDelete = async () => {
+    const confirmed = await showConfirm({
+      title: "¿Eliminar esta cita?",
+      text: "La cita dejará de verse en la agenda y en el sistema. Esta acción no se puede deshacer desde aquí.",
+      icon: "warning",
+      confirmButtonText: "Sí, eliminar",
+    });
+    if (!confirmed) return;
+
+    setDeleting(true);
+    showLoading("Eliminando cita...");
+    try {
+      await api.patch(`/appointments/${appointment.appointmentId}/hide`);
+      closeAlert();
+      showToast("success", "Cita eliminada correctamente");
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      closeAlert();
+      showError(
+        "Error",
+        err.response?.data?.message || "No se pudo eliminar la cita",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -134,6 +181,16 @@ const AppointmentDetailsModal = ({
               className="w-full px-5 py-2.5 rounded-full border border-borderClinik text-primary font-bold text-xs hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Editar Cita
+            </button>
+          )}
+
+          {canDelete && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="w-full px-5 py-2.5 rounded-full bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {deleting ? "Eliminando..." : "Eliminar Cita"}
             </button>
           )}
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { LuX, LuPlus, LuTrash2 } from "react-icons/lu";
 import api from "../services/api";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import {
   showLoading,
   closeAlert,
@@ -25,6 +26,7 @@ const initialFormState = {
 
 const ServiceModal = ({ isOpen, onClose, onRefresh, service }) => {
   const isEditMode = Boolean(service);
+  useBackButtonClose(isOpen, onClose);
 
   const [formData, setFormData] = useState(initialFormState);
   const [inclusions, setInclusions] = useState([""]);

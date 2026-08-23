@@ -108,7 +108,9 @@ const findConflictingAppointment = async (
 export const getAllAppointments = async (req, res) => {
   try {
     const where =
-      req.user.role === "Administrador" ? {} : { userId: req.user.id };
+      req.user.role === "Administrador"
+        ? { isHidden: false }
+        : { userId: req.user.id, isHidden: false };
 
     const appointments = await Appointment.findAll({
       where,
@@ -268,7 +270,7 @@ export const updateAppointment = async (req, res) => {
 export const getPendingCheckouts = async (req, res) => {
   try {
     const appointments = await Appointment.findAll({
-      where: { status: "Completada" },
+      where: { status: "Completada", isHidden: false },
       include: [
         { model: Customer, as: "customer", attributes: ["name"] },
         { model: Service, as: "service", attributes: ["name"] },
@@ -289,6 +291,36 @@ export const getPendingCheckouts = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while fetching pending checkouts",
+      error: error.message,
+    });
+  }
+};
+
+export const hideAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const appointment = await Appointment.findByPk(id, {
+      include: ["medicalAssessment", "laserAssessment"],
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: "Cita no encontrada" });
+    }
+
+    if (appointment.medicalAssessment || appointment.laserAssessment) {
+      return res.status(400).json({
+        message:
+          "Esta cita ya tiene un expediente clínico registrado y no puede eliminarse. Puedes cancelarla en su lugar.",
+      });
+    }
+
+    await appointment.update({ isHidden: true });
+
+    res.status(200).json({ message: "Cita eliminada correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while hiding appointment",
       error: error.message,
     });
   }

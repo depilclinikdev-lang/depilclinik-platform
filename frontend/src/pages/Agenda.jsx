@@ -230,6 +230,7 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
               }
             : undefined
         }
+        onDeleted={fetchAppointments}
       />
 
       <CheckoutModal

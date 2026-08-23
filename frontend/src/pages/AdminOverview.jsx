@@ -85,43 +85,43 @@ const AdminOverview = ({ userRole }) => {
       minute: "2-digit",
     });
 
-  const fetchAll = async () => {
-    try {
-      setLoading(true);
-      const [
-        summaryRes,
-        incomeRes,
-        treatmentsRes,
-        performanceRes,
-        upcomingRes,
-      ] = await Promise.all([
-        api.get("/dashboard/today-summary"),
-        api.get("/sales/today-income"),
-        api.get("/dashboard/top-treatments"),
-        api.get("/dashboard/collaborator-performance"),
-        api.get("/dashboard/upcoming-appointments"),
-      ]);
+const fetchAll = async ({ silent = false } = {}) => {
+  try {
+    if (!silent) setLoading(true);
+    const [
+      summaryRes,
+      incomeRes,
+      treatmentsRes,
+      performanceRes,
+      upcomingRes,
+    ] = await Promise.all([
+      api.get("/dashboard/today-summary"),
+      api.get("/sales/today-income"),
+      api.get("/dashboard/top-treatments"),
+      api.get("/dashboard/collaborator-performance"),
+      api.get("/dashboard/upcoming-appointments"),
+    ]);
 
-      setTodaySummary(summaryRes.data);
-      setTodayIncome(incomeRes.data.totalIncome);
-      setTopTreatments(treatmentsRes.data);
-      setPerformance(performanceRes.data);
-      setUpcoming(upcomingRes.data);
+    setTodaySummary(summaryRes.data);
+    setTodayIncome(incomeRes.data.totalIncome);
+    setTopTreatments(treatmentsRes.data);
+    setPerformance(performanceRes.data);
+    setUpcoming(upcomingRes.data);
 
-      setError("");
-    } catch (err) {
-      setError("No se pudo cargar la información del dashboard.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError("");
+  } catch (err) {
+    setError("No se pudo cargar la información del dashboard.");
+    console.error(err);
+  } finally {
+    if (!silent) setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    fetchAll();
-    const interval = setInterval(fetchAll, 15000);
-    return () => clearInterval(interval);
-  }, []);
+useEffect(() => {
+  fetchAll();
+  const interval = setInterval(() => fetchAll({ silent: true }), 15000);
+  return () => clearInterval(interval);
+}, []);
 
   const maxPerformanceCount = Math.max(...performance.map((p) => p.count), 1);
 

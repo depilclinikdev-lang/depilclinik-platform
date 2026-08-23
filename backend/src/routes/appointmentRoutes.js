@@ -9,6 +9,7 @@ import {
 } from "../controllers/appointmentController.js";
 import { protect, restrictTo } from "../middlewares/auth.js";
 import { writeLimiter } from "../middlewares/rateLimiter.js";
+import { hideAppointment } from "../controllers/appointmentController.js";
 
 const router = express.Router();
 
@@ -39,6 +40,12 @@ router.get(
   protect,
   restrictTo("Administrador"),
   getPendingCheckouts,
+);
+router.patch(
+  "/:id/hide",
+  protect,
+  restrictTo("Administrador"),
+  hideAppointment,
 );
 
 export default router;

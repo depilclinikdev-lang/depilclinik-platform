@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import {
   LuX,
   LuReceipt,
@@ -28,6 +29,7 @@ const STATUS_COLORS = {
 };
 
 const SaleDetailModal = ({ isOpen, sale, onClose, onPaymentSuccess }) => {
+  useBackButtonClose(isOpen, onClose);
   if (!isOpen || !sale) return null;
 
   const [showAddPayment, setShowAddPayment] = useState(false);

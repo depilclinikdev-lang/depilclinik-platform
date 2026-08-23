@@ -26,13 +26,14 @@ export const getTodaySummary = async (req, res) => {
     const { start, end } = getTodayRange();
 
     const totalAppointmentsToday = await Appointment.count({
-      where: { startTime: { [Op.between]: [start, end] } },
+      where: { startTime: { [Op.between]: [start, end] }, isHidden: false },
     });
 
     const completedTodayAppointments = await Appointment.findAll({
       where: {
         status: "Completada",
         startTime: { [Op.between]: [start, end] },
+        isHidden: false,
       },
       attributes: ["customerId"],
     });
@@ -69,6 +70,7 @@ export const getTopTreatments = async (req, res) => {
       where: {
         status: "Completada",
         startTime: { [Op.between]: [start, end] },
+        isHidden: false,
       },
       attributes: [
         "serviceId",
@@ -176,7 +178,8 @@ export const getUpcomingAppointments = async (req, res) => {
     const appointments = await Appointment.findAll({
       where: {
         status: { [Op.notIn]: ["Completada", "Cancelada"] },
-        startTime: { [Op.gte]: startOfToday }, // 👈 Desde hoy en adelante
+        startTime: { [Op.gte]: startOfToday },
+        isHidden: false,
       },
       include: [
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
@@ -205,6 +208,7 @@ export const getMyTodayAppointments = async (req, res) => {
       where: {
         userId: req.user.id,
         startTime: { [Op.between]: [start, end] },
+        isHidden: false,
       },
       include: [
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
@@ -266,6 +270,7 @@ export const getMyUpcomingAppointments = async (req, res) => {
         userId: req.user.id,
         status: { [Op.notIn]: ["Completada", "Cancelada"] },
         startTime: { [Op.gte]: startOfToday },
+        isHidden: false,
       },
       include: [
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
@@ -291,6 +296,7 @@ export const getMyPendingAssessments = async (req, res) => {
       where: {
         userId: req.user.id,
         status: "Completada",
+        isHidden: false,
       },
       include: [
         { model: Customer, as: "customer", attributes: ["name"] },

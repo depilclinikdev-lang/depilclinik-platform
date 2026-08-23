@@ -63,6 +63,12 @@ const Appointment = sequelize.define(
       defaultValue: false,
       field: "is_new_client_pending_data",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "is_hidden",
+    },
   },
   {
     tableName: "Appointments",

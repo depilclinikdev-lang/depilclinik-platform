@@ -14,6 +14,7 @@ import {
   showSuccess,
   showError,
 } from "../utils/alerts";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const DAYS = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1).padStart(2, "0"),
@@ -53,6 +54,7 @@ const PackageDetailModal = ({ isOpen, pkg, onClose, onRefresh }) => {
   const [amount, setAmount] = useState("");
   const [showPay, setShowPay] = useState(false);
   const [loading, setLoading] = useState(false);
+  useBackButtonClose(isOpen, onClose);
 
   React.useEffect(() => {
     if (isOpen) {

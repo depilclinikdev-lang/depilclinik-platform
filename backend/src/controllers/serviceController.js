@@ -11,7 +11,7 @@ const inclusionInclude = {
 export const getAllServices = async (req, res) => {
   try {
     const { brand } = req.query;
-    const where = {};
+    const where = { isHidden: false };
     if (brand) where.brand = brand;
 
     const services = await Service.findAll({
@@ -209,6 +209,26 @@ export const reactivateService = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while reactivating service",
+      error: error.message,
+    });
+  }
+};
+export const hideService = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const service = await Service.findByPk(id);
+
+    if (!service) {
+      return res.status(404).json({ message: "Servicio no encontrado" });
+    }
+
+    await service.update({ isHidden: true });
+    await invalidateCache("services");
+
+    res.status(200).json({ message: "Servicio eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while hiding service",
       error: error.message,
     });
   }

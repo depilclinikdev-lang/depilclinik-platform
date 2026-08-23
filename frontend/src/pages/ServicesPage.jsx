@@ -33,9 +33,9 @@ const ServicesPage = ({ currentUserRole }) => {
   const [editingService, setEditingService] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
 
-  const fetchServices = async () => {
+  const fetchServices = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await api.get("/services");
       setServices(response.data);
       setError("");
@@ -43,7 +43,7 @@ const ServicesPage = ({ currentUserRole }) => {
       setError("No se pudo conectar con el catálogo de servicios.");
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -77,7 +77,7 @@ const ServicesPage = ({ currentUserRole }) => {
       } else {
         await api.patch(`/services/${service.serviceId}/reactivate`);
       }
-      await fetchServices();
+      await fetchServices({ silent: true });
       closeAlert();
       showToast(
         "success",
@@ -86,6 +86,30 @@ const ServicesPage = ({ currentUserRole }) => {
     } catch (err) {
       closeAlert();
       showError("Error", "No se pudo actualizar el estado del servicio");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+  const handleHideService = async (service) => {
+    const confirmed = await showConfirm({
+      title: "¿Eliminar este servicio?",
+      text: `"${service.name}" dejará de verse en todo el sistema (catálogo, citas y paquetes). Esta acción no se puede deshacer desde aquí.`,
+      icon: "warning",
+      confirmButtonText: "Sí, eliminar",
+    });
+    if (!confirmed) return;
+
+    setTogglingId(service.serviceId);
+    showLoading("Eliminando servicio...");
+    try {
+      await api.patch(`/services/${service.serviceId}/hide`);
+      await fetchServices({ silent: true });
+      closeAlert();
+      showToast("success", "Servicio eliminado del sistema");
+    } catch (err) {
+      closeAlert();
+      showError("Error", "No se pudo eliminar el servicio");
+      console.error(err);
     } finally {
       setTogglingId(null);
     }
@@ -279,21 +303,30 @@ const ServicesPage = ({ currentUserRole }) => {
                 </div>
 
                 {isAdmin && (
-                  <button
-                    onClick={() => handleToggleActive(service)}
-                    disabled={togglingId === service.serviceId}
-                    className={`mt-2 w-full text-center py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
-                      service.isActive
-                        ? "bg-red-50 text-red-600 hover:bg-red-100"
-                        : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                    }`}
-                  >
-                    {togglingId === service.serviceId
-                      ? "Actualizando..."
-                      : service.isActive
-                        ? "Desactivar Servicio"
-                        : "Reactivar Servicio"}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleToggleActive(service)}
+                      disabled={togglingId === service.serviceId}
+                      className={`mt-2 w-full text-center py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                        service.isActive
+                          ? "bg-red-50 text-red-600 hover:bg-red-100"
+                          : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                      }`}
+                    >
+                      {togglingId === service.serviceId
+                        ? "Actualizando..."
+                        : service.isActive
+                          ? "Desactivar Servicio"
+                          : "Reactivar Servicio"}
+                    </button>
+                    <button
+                      onClick={() => handleHideService(service)}
+                      disabled={togglingId === service.serviceId}
+                      className="w-full text-center py-2 rounded-xl text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      Eliminar
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -304,7 +337,7 @@ const ServicesPage = ({ currentUserRole }) => {
       <ServiceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onRefresh={fetchServices}
+        onRefresh={() => fetchServices({ silent: true })}
         service={editingService}
       />
     </div>

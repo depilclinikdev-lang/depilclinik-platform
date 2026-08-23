@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
 import CustomerAutocomplete from "./CustomerAutocomplete";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 import {
   showLoading,
   closeAlert,
@@ -26,6 +27,7 @@ const SellPackageModal = ({ isOpen, onClose, onRefresh }) => {
   const [services, setServices] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  useBackButtonClose(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {

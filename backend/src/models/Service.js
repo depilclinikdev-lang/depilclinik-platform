@@ -48,6 +48,11 @@ const Service = sequelize.define(
       defaultValue: true,
       field: "is_active",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: "is_hidden",
+    },
   },
   {
     tableName: "Services",
