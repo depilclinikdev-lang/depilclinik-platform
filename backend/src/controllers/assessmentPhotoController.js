@@ -60,7 +60,7 @@ export const uploadAssessmentPhoto = async (req, res) => {
     }
 
     const compressedBuffer = await compressImage(req.file.buffer);
-    const objectKey = buildObjectKey("skinclinic/assessment-photos");
+    const objectKey = buildObjectKey("depilclinik/assessment-photos");
     await uploadBufferToS3(compressedBuffer, objectKey);
 
     // Si ya había una imagen previa en este registro (re-subida), borramos

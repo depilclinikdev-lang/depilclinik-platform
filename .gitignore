@@ -6,3 +6,5 @@ mysql_data/
 # Ocultar el diagrama local de Draw.io
 *.drawio
 .vscode/settings.json
+.vercel
+.env*
