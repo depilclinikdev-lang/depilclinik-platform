@@ -25,13 +25,23 @@ const emptyFormState = {
 
 const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
   const isEditMode = Boolean(employee);
-  useBackButtonClose(isOpen, handleCloseAndReset);
 
   const [formData, setFormData] = useState(emptyFormState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [generatedPassword, setGeneratedPassword] = useState("");
   const [copied, setCopied] = useState(false);
+
+  // 1. Declaramos primero la función de limpieza y cierre
+  const handleCloseAndReset = () => {
+    setGeneratedPassword("");
+    setError("");
+    setFormData(emptyFormState);
+    onClose();
+  };
+
+  // 2. Usamos el hook de manera segura una vez que la función ya está declarada
+  useBackButtonClose(isOpen, handleCloseAndReset);
 
   useEffect(() => {
     if (isOpen) {
@@ -68,13 +78,6 @@ const NewEmployeeModal = ({ isOpen, onClose, onRefresh, employee }) => {
     navigator.clipboard.writeText(generatedPassword);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleCloseAndReset = () => {
-    setGeneratedPassword("");
-    setError("");
-    setFormData(emptyFormState);
-    onClose();
   };
 
   const handleSubmit = async (e) => {
