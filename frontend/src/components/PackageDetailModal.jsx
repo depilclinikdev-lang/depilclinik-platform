@@ -285,25 +285,67 @@ const PackageDetailModal = ({ isOpen, pkg, onClose, onRefresh }) => {
                     ))}
                   </select>
                   <div className="grid grid-cols-3 gap-2">
-                    <WheelDropdown
-                      label="Día"
-                      value={dateParts.day}
-                      options={DAYS}
-                      onChange={(v) => setDateParts((p) => ({ ...p, day: v }))}
-                    />
-                    <WheelDropdown
-                      label="Mes"
-                      value={dateParts.month}
-                      options={MONTHS}
-                      onChange={(v) =>
-                        setDateParts((p) => ({ ...p, month: v }))
-                      }
-                    />
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-primary uppercase tracking-wide">
+                        Día
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength="2"
+                        placeholder="DD"
+                        value={dateParts.day}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 2);
+                          setDateParts((prev) => ({ ...prev, day: raw }));
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value.length === 1) {
+                            setDateParts((prev) => ({
+                              ...prev,
+                              day: prev.day.padStart(2, "0"),
+                            }));
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-borderClinik text-sm bg-white focus:outline-none focus:border-secondary"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-primary uppercase tracking-wide">
+                        Mes
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength="2"
+                        placeholder="MM"
+                        value={dateParts.month}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 2);
+                          setDateParts((prev) => ({ ...prev, month: raw }));
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value.length === 1) {
+                            setDateParts((prev) => ({
+                              ...prev,
+                              month: prev.month.padStart(2, "0"),
+                            }));
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-borderClinik text-sm bg-white focus:outline-none focus:border-secondary"
+                      />
+                    </div>
                     <WheelDropdown
                       label="Año"
                       value={dateParts.year}
                       options={YEARS}
-                      onChange={(v) => setDateParts((p) => ({ ...p, year: v }))}
+                      onChange={(v) =>
+                        setDateParts((prev) => ({ ...prev, year: v }))
+                      }
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
