@@ -53,6 +53,7 @@ CREATE TABLE Services (
     promo_price DECIMAL(10,2) NULL,
     requires_assessment BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -73,6 +74,7 @@ CREATE TABLE Appointments (
     end_time DATETIME NOT NULL,
     status ENUM('Programada', 'Confirmada', 'En Tratamiento', 'Completada', 'Cancelada') NOT NULL DEFAULT 'Programada',
     is_new_client_pending_data BOOLEAN NOT NULL DEFAULT FALSE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_appointments_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
     CONSTRAINT fk_appointments_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE RESTRICT,
@@ -107,6 +109,7 @@ CREATE TABLE Medical_Assessments (
     performed_by_user_id INT NULL,
     filled_at TIMESTAMP NULL,
     locked_for_collaborator BOOLEAN NOT NULL DEFAULT FALSE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_assessments_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
     CONSTRAINT fk_assessments_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
     CONSTRAINT fk_assessments_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL, 
@@ -424,9 +427,10 @@ CREATE TABLE Laser_Medical_Assessments (
     has_signed_consent BOOLEAN NOT NULL DEFAULT FALSE,
     consent_pdf_url VARCHAR(512) NULL,
     filled_by_user_id INT NULL,
-    performed_by_user_id INT NULL
+    performed_by_user_id INT NULL,
     filled_at TIMESTAMP NULL,
     locked_for_collaborator BOOLEAN NOT NULL DEFAULT FALSE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_laser_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
     CONSTRAINT fk_laser_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
     CONSTRAINT fk_laser_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL,
@@ -516,6 +520,7 @@ CREATE TABLE Sales (
     total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
     status ENUM('Liquidada', 'Con adeudo', 'Cancelada') NOT NULL DEFAULT 'Con adeudo',
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_sales_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE RESTRICT,
     CONSTRAINT fk_sales_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
@@ -586,6 +591,7 @@ CREATE TABLE Customer_Packages (
     amount_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
     payment_status ENUM('Pagado', 'Con adeudo') NOT NULL DEFAULT 'Con adeudo',
     status ENUM('Activo', 'Completado', 'Cancelado') NOT NULL DEFAULT 'Activo',
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     notes TEXT NULL,
     sold_by_user_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
