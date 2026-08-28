@@ -65,6 +65,11 @@ const Customer = sequelize.define(
       defaultValue: true,
       field: "is_active",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: "is_hidden",
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

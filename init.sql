@@ -39,6 +39,7 @@ CREATE TABLE Customers (
     emergency_contact_phone VARCHAR(10) NULL,
     medical_insurance_number VARCHAR(50) UNIQUE NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

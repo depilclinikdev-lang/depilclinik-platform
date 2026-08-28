@@ -126,7 +126,7 @@ export const createPackage = async (req, res) => {
 export const getAllPackages = async (req, res) => {
   try {
     const { marca, status, paymentStatus, search } = req.query;
-    const where = {};
+    const where = { "$customer.is_hidden$": false };
     if (marca) where.marca = marca;
     if (status) where.status = status;
     if (paymentStatus) where.paymentStatus = paymentStatus;

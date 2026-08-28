@@ -109,8 +109,12 @@ export const getAllAppointments = async (req, res) => {
   try {
     const where =
       req.user.role === "Administrador"
-        ? { isHidden: false }
-        : { userId: req.user.id, isHidden: false };
+        ? { isHidden: false, "$customer.is_hidden$": false }
+        : {
+            userId: req.user.id,
+            isHidden: false,
+            "$customer.is_hidden$": false,
+          };
 
     const appointments = await Appointment.findAll({
       where,
@@ -270,7 +274,11 @@ export const updateAppointment = async (req, res) => {
 export const getPendingCheckouts = async (req, res) => {
   try {
     const appointments = await Appointment.findAll({
-      where: { status: "Completada", isHidden: false },
+      where: {
+        status: "Completada",
+        isHidden: false,
+        "$customer.is_hidden$": false,
+      },
       include: [
         { model: Customer, as: "customer", attributes: ["name"] },
         { model: Service, as: "service", attributes: ["name"] },
@@ -306,12 +314,18 @@ export const hideAppointment = async (req, res) => {
       transaction: t,
     });
 
+    const hasSignedAssessment =
+      (appointment?.medicalAssessment &&
+        appointment.medicalAssessment.hasSignedConsent) ||
+      (appointment?.laserAssessment &&
+        appointment.laserAssessment.hasSignedConsent);
+
     if (!appointment) {
       await t.rollback();
       return res.status(404).json({ message: "Cita no encontrada" });
     }
 
-    if (appointment.medicalAssessment || appointment.laserAssessment) {
+    if (hasSignedAssessment) {
       await t.rollback();
       return res.status(400).json({
         message:
@@ -319,8 +333,6 @@ export const hideAppointment = async (req, res) => {
       });
     }
 
-    // Si la cita venía de una sesión de paquete, la liberamos para que
-    // vuelva a estar disponible como Pendiente y se pueda re-agendar.
     if (appointment.packageSession) {
       await appointment.packageSession.update(
         { appointmentId: null, status: "Pendiente" },

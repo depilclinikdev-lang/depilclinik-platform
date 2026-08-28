@@ -110,6 +110,7 @@ export const searchCustomers = async (req, res) => {
     const customers = await Customer.findAll({
       where: {
         isActive: true,
+        isHidden: false,
         [Op.or]: [
           { name: { [Op.like]: `%${q}%` } },
           { phone: { [Op.like]: `%${q}%` } },
@@ -132,6 +133,7 @@ export const searchCustomers = async (req, res) => {
 export const getAllCustomers = async (req, res) => {
   try {
     const customers = await Customer.findAll({
+      where: { isHidden: false },
       order: [["customer_id", "DESC"]],
     });
     res.status(200).json(customers);
@@ -235,6 +237,25 @@ export const reactivateCustomer = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while reactivating customer",
+      error: error.message,
+    });
+  }
+};
+export const hideCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const customer = await Customer.findByPk(id);
+
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    await customer.update({ isHidden: true });
+
+    res.status(200).json({ message: "Cliente eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while hiding customer",
       error: error.message,
     });
   }

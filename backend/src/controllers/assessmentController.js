@@ -389,6 +389,7 @@ export const getAllAssessments = async (req, res) => {
           model: Customer,
           as: "customer",
           attributes: ["customerId", "name", "phone"],
+          where: { isHidden: false },
         },
       ],
       order: [[sequelize.col("created_at"), "DESC"]],

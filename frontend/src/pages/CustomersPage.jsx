@@ -87,6 +87,30 @@ const CustomersPage = ({ currentUserRole }) => {
       setTogglingId(null);
     }
   };
+  const handleHideCustomer = async (customer) => {
+    const confirmed = await showConfirm({
+      title: "¿Eliminar este cliente?",
+      text: `"${customer.name}" dejará de verse en todo el sistema (clientes, agenda, paquetes y expedientes). Esta acción no se puede deshacer desde aquí.`,
+      icon: "warning",
+      confirmButtonText: "Sí, eliminar",
+    });
+    if (!confirmed) return;
+
+    setTogglingId(customer.customerId);
+    showLoading("Eliminando cliente...");
+    try {
+      await api.patch(`/customers/${customer.customerId}/hide`);
+      await fetchCustomers();
+      closeAlert();
+      showToast("success", "Cliente eliminado del sistema");
+    } catch (err) {
+      closeAlert();
+      showError("Error", "No se pudo eliminar el cliente");
+      console.error(err);
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   const filteredCustomers = customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -270,6 +294,14 @@ const CustomersPage = ({ currentUserRole }) => {
                               <span
                                 className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${customer.isActive ? "translate-x-5" : "translate-x-0"}`}
                               />
+                            </button>
+                            <button
+                              onClick={() => handleHideCustomer(customer)}
+                              disabled={togglingId === customer.customerId}
+                              className="text-[11px] font-bold text-red-500 hover:text-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                              title="Eliminar cliente de la vista"
+                            >
+                              Eliminar
                             </button>
                           </div>
                         </td>

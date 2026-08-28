@@ -10,6 +10,7 @@ import {
 } from "../controllers/customerController.js";
 import { protect, restrictTo } from "../middlewares/auth.js";
 import { writeLimiter } from "../middlewares/rateLimiter.js";
+import { hideCustomer } from "../controllers/customerController.js";
 
 const router = express.Router();
 // El directorio completo de clientes es exclusivo de Administrador,
@@ -43,5 +44,6 @@ router.patch(
   restrictTo("Administrador"),
   reactivateCustomer,
 );
+router.patch("/:id/hide", protect, restrictTo("Administrador"), hideCustomer);
 
 export default router;
