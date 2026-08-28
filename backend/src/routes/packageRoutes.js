@@ -1,15 +1,16 @@
 import express from "express";
+import { protect, restrictTo } from "../middlewares/auth.js";
+import { writeLimiter } from "../middlewares/rateLimiter.js";
 import {
   createPackage,
   getAllPackages,
   getPackagesByCustomer,
   getPackageById,
+  updatePackage,
   registerPackagePayment,
   scheduleNextSession,
   cancelPackage,
 } from "../controllers/packageController.js";
-import { protect, restrictTo } from "../middlewares/auth.js";
-import { writeLimiter } from "../middlewares/rateLimiter.js";
 
 const router = express.Router();
 
@@ -49,5 +50,11 @@ router.patch(
   restrictTo("Administrador"),
   cancelPackage,
 );
-
+router.put(
+  "/:id",
+  protect,
+  restrictTo("Administrador"),
+  writeLimiter,
+  updatePackage,
+);
 export default router;

@@ -297,28 +297,43 @@ export const getPendingCheckouts = async (req, res) => {
 };
 
 export const hideAppointment = async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { id } = req.params;
 
     const appointment = await Appointment.findByPk(id, {
-      include: ["medicalAssessment", "laserAssessment"],
+      include: ["medicalAssessment", "laserAssessment", "packageSession"],
+      transaction: t,
     });
 
     if (!appointment) {
+      await t.rollback();
       return res.status(404).json({ message: "Cita no encontrada" });
     }
 
     if (appointment.medicalAssessment || appointment.laserAssessment) {
+      await t.rollback();
       return res.status(400).json({
         message:
           "Esta cita ya tiene un expediente clínico registrado y no puede eliminarse. Puedes cancelarla en su lugar.",
       });
     }
 
-    await appointment.update({ isHidden: true });
+    // Si la cita venía de una sesión de paquete, la liberamos para que
+    // vuelva a estar disponible como Pendiente y se pueda re-agendar.
+    if (appointment.packageSession) {
+      await appointment.packageSession.update(
+        { appointmentId: null, status: "Pendiente" },
+        { transaction: t },
+      );
+    }
 
+    await appointment.update({ isHidden: true }, { transaction: t });
+
+    await t.commit();
     res.status(200).json({ message: "Cita eliminada correctamente" });
   } catch (error) {
+    await t.rollback();
     res.status(500).json({
       message: "Server error while hiding appointment",
       error: error.message,

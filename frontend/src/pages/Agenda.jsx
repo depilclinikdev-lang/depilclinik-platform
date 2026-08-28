@@ -12,6 +12,8 @@ import AppointmentModal from "../components/AppointmentModal";
 import AppointmentDetailsModal from "../components/AppointmentDetailsModal";
 import { STATUS_META } from "../constants/appointmentStatus";
 import CheckoutModal from "../components/CheckoutModal";
+import PackageDetailModal from "../components/PackageDetailModal";
+import { showLoading, closeAlert, showError } from "../utils/alerts";
 
 const localizer = dateFnsLocalizer({
   format,
@@ -50,6 +52,7 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
   const [viewingAppointment, setViewingAppointment] = useState(null);
   const [currentView, setCurrentView] = useState(Views.MONTH);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewingPackage, setViewingPackage] = useState(null);
   const [directCheckoutAppointment, setDirectCheckoutAppointment] =
     useState(null);
 
@@ -113,6 +116,29 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
     setIsModalOpen(true);
   }, []);
 
+  const handleEditAppointment = useCallback(async (appointment) => {
+    setViewingAppointment(null);
+
+    if (appointment.packageSession?.packageId) {
+      try {
+        showLoading("Cargando paquete...");
+        const response = await api.get(
+          `/packages/${appointment.packageSession.packageId}`,
+        );
+        closeAlert();
+        setViewingPackage(response.data);
+      } catch (err) {
+        closeAlert();
+        showError("Error", "No se pudo cargar el paquete de esta cita");
+        console.error(err);
+      }
+      return;
+    }
+
+    setEditingAppointment(appointment);
+    setIsModalOpen(true);
+  }, []);
+
   const handleSelectEvent = useCallback(
     (event) => {
       if (event.needsCheckout && isAdmin) {
@@ -124,10 +150,6 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
         });
         return;
       }
-      // Tanto Administrador como Colaborador ven el mismo detalle de la
-      // cita. Desde ahí cada uno tiene las acciones que le correspondan
-      // (el admin también puede editar o atender/llenar el expediente
-      // en lugar del colaborador asignado, si este no pudo asistir).
       setViewingAppointment(event.resource);
     },
     [isAdmin],
@@ -221,15 +243,7 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
           setViewingAppointment(null);
           onAttendAppointment(appointmentId);
         }}
-        onEdit={
-          isAdmin
-            ? (appointment) => {
-                setViewingAppointment(null);
-                setEditingAppointment(appointment);
-                setIsModalOpen(true);
-              }
-            : undefined
-        }
+        onEdit={isAdmin ? handleEditAppointment : undefined}
         onDeleted={fetchAppointments}
       />
 
@@ -245,6 +259,21 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
           fetchAppointments();
         }}
         onSkip={() => setDirectCheckoutAppointment(null)}
+      />
+
+      <PackageDetailModal
+        isOpen={Boolean(viewingPackage)}
+        pkg={viewingPackage}
+        onClose={() => setViewingPackage(null)}
+        onRefresh={async () => {
+          await fetchAppointments();
+          if (viewingPackage) {
+            const response = await api.get(
+              `/packages/${viewingPackage.packageId}`,
+            );
+            setViewingPackage(response.data);
+          }
+        }}
       />
     </div>
   );

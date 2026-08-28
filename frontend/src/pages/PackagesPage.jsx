@@ -1,9 +1,16 @@
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../services/api";
-import { LuPlus, LuSearch, LuCalendarPlus, LuWallet } from "react-icons/lu";
+import {
+  LuPlus,
+  LuSearch,
+  LuCalendarPlus,
+  LuWallet,
+  LuPencil,
+} from "react-icons/lu";
 import SellPackageModal from "../components/SellPackageModal";
 import PackageDetailModal from "../components/PackageDetailModal";
 import { showLoading, closeAlert, showError } from "../utils/alerts";
+import EditPackageModal from "../components/EditPackageModal";
 
 const BRAND_COLORS = { "Modelha DK": "#197e88", Depilclinik: "#c0247d" };
 
@@ -16,6 +23,7 @@ const PackagesPage = () => {
   const [statusFilter, setStatusFilter] = useState("Activo");
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [editingPackage, setEditingPackage] = useState(null);
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -208,12 +216,20 @@ const PackagesPage = () => {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button
-                          onClick={() => handleOpenDetail(pkg.packageId)}
-                          className="flex items-center gap-1.5 ml-auto px-3.5 py-1.5 rounded-lg bg-secondary/10 text-secondary font-bold text-xs hover:bg-secondary/20 transition-colors cursor-pointer"
-                        >
-                          <LuCalendarPlus size={14} /> Ver / Agendar
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenDetail(pkg.packageId)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-secondary/10 text-secondary font-bold text-xs hover:bg-secondary/20 transition-colors cursor-pointer"
+                          >
+                            <LuCalendarPlus size={14} /> Agendar
+                          </button>
+                          <button
+                            onClick={() => setEditingPackage(pkg)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-bold text-xs hover:bg-gray-200 transition-colors cursor-pointer"
+                          >
+                            <LuPencil size={14} /> Editar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -239,6 +255,12 @@ const PackagesPage = () => {
           if (selectedPackage)
             await handleOpenDetail(selectedPackage.packageId);
         }}
+      />
+      <EditPackageModal
+        isOpen={Boolean(editingPackage)}
+        pkg={editingPackage}
+        onClose={() => setEditingPackage(null)}
+        onRefresh={fetchPackages}
       />
     </div>
   );

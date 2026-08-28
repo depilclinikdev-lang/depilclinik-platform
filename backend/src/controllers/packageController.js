@@ -6,6 +6,7 @@ import PackagePayment from "../models/PackagePayment.js";
 import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
 import Appointment from "../models/Appointment.js";
+import User from "../models/User.js";
 
 const recomputePaymentStatus = (total, paid) =>
   paid >= total ? "Pagado" : "Con adeudo";
@@ -24,7 +25,16 @@ const packageIncludes = [
       {
         model: Appointment,
         as: "appointment",
-        attributes: ["appointmentId", "startTime", "endTime", "status"],
+        attributes: [
+          "appointmentId",
+          "startTime",
+          "endTime",
+          "status",
+          "userId",
+        ],
+        include: [
+          { model: User, as: "collaborator", attributes: ["id", "name"] },
+        ],
       },
     ],
   },
@@ -167,6 +177,104 @@ export const getPackageById = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while fetching package",
+      error: error.message,
+    });
+  }
+};
+
+export const updatePackage = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { serviceId, totalSessions, totalPrice, notes } = req.body;
+
+    const pkg = await CustomerPackage.findByPk(id, {
+      include: [{ model: PackageSession, as: "sessions" }],
+      transaction: t,
+    });
+
+    if (!pkg) {
+      await t.rollback();
+      return res.status(404).json({ message: "Paquete no encontrado" });
+    }
+
+    if (totalSessions !== undefined) {
+      const newTotal = Number(totalSessions);
+      if (!newTotal || newTotal < pkg.sessionsCompleted) {
+        await t.rollback();
+        return res.status(400).json({
+          message: `El número de sesiones no puede ser menor a las ya completadas (${pkg.sessionsCompleted})`,
+        });
+      }
+
+      const currentTotal = pkg.sessions.length;
+      if (newTotal > currentTotal) {
+        // Agregar sesiones nuevas en Pendiente
+        const toAdd = Array.from(
+          { length: newTotal - currentTotal },
+          (_, i) => ({
+            packageId: pkg.packageId,
+            sessionNumber: currentTotal + i + 1,
+          }),
+        );
+        await PackageSession.bulkCreate(toAdd, { transaction: t });
+      } else if (newTotal < currentTotal) {
+        // Quitar sesiones sobrantes, solo las que sigan Pendientes
+        const removableSessions = pkg.sessions
+          .filter((s) => s.status === "Pendiente")
+          .sort((a, b) => b.sessionNumber - a.sessionNumber)
+          .slice(0, currentTotal - newTotal);
+
+        if (removableSessions.length < currentTotal - newTotal) {
+          await t.rollback();
+          return res.status(400).json({
+            message:
+              "No se puede reducir tanto: hay sesiones ya agendadas o completadas que ocupan ese lugar",
+          });
+        }
+
+        await PackageSession.destroy({
+          where: {
+            packageSessionId: removableSessions.map((s) => s.packageSessionId),
+          },
+          transaction: t,
+        });
+      }
+    }
+
+    const newTotalPrice =
+      totalPrice !== undefined
+        ? Number(totalPrice)
+        : parseFloat(pkg.totalPrice);
+
+    if (newTotalPrice < parseFloat(pkg.amountPaid)) {
+      await t.rollback();
+      return res.status(400).json({
+        message: `El precio total no puede ser menor a lo ya pagado (${pkg.amountPaid})`,
+      });
+    }
+
+    await pkg.update(
+      {
+        serviceId: serviceId ?? pkg.serviceId,
+        totalSessions: totalSessions ?? pkg.totalSessions,
+        totalPrice: newTotalPrice,
+        paymentStatus: recomputePaymentStatus(newTotalPrice, pkg.amountPaid),
+        notes: notes !== undefined ? notes : pkg.notes,
+      },
+      { transaction: t },
+    );
+
+    await t.commit();
+
+    const fullPackage = await CustomerPackage.findByPk(id, {
+      include: packageIncludes,
+    });
+    res.status(200).json(fullPackage);
+  } catch (error) {
+    await t.rollback();
+    res.status(500).json({
+      message: "Server error while updating package",
       error: error.message,
     });
   }
