@@ -9,8 +9,14 @@ import {
 } from "react-icons/lu";
 import SellPackageModal from "../components/SellPackageModal";
 import PackageDetailModal from "../components/PackageDetailModal";
-import { showLoading, closeAlert, showError } from "../utils/alerts";
 import EditPackageModal from "../components/EditPackageModal";
+import {
+  showLoading,
+  closeAlert,
+  showError,
+  showConfirm,
+  showToast,
+} from "../utils/alerts";
 
 const BRAND_COLORS = { "Modelha DK": "#197e88", Depilclinik: "#c0247d" };
 
@@ -65,6 +71,28 @@ const PackagesPage = () => {
     } catch (err) {
       closeAlert();
       showError("Error", "No se pudo cargar el detalle del paquete");
+    }
+  };
+
+  const handleHidePackage = async (pkg) => {
+    const confirmed = await showConfirm({
+      title: "¿Eliminar este paquete?",
+      text: `El paquete de "${pkg.customer?.name}" dejará de verse en el sistema y sus pagos ya no contarán en los ingresos. Esta acción no se puede deshacer desde aquí.`,
+      icon: "warning",
+      confirmButtonText: "Sí, eliminar",
+    });
+    if (!confirmed) return;
+
+    showLoading("Eliminando paquete...");
+    try {
+      await api.patch(`/packages/${pkg.packageId}/hide`);
+      await fetchPackages();
+      closeAlert();
+      showToast("success", "Paquete eliminado correctamente");
+    } catch (err) {
+      closeAlert();
+      showError("Error", "No se pudo eliminar el paquete");
+      console.error(err);
     }
   };
 
@@ -222,6 +250,12 @@ const PackagesPage = () => {
                             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-secondary/10 text-secondary font-bold text-xs hover:bg-secondary/20 transition-colors cursor-pointer"
                           >
                             <LuCalendarPlus size={14} /> Agendar
+                          </button>
+                          <button
+                            onClick={() => handleHidePackage(pkg)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition-colors cursor-pointer"
+                          >
+                            Eliminar
                           </button>
                           <button
                             onClick={() => setEditingPackage(pkg)}

@@ -272,7 +272,7 @@ export const getSalesHistory = async (req, res) => {
       ];
     }
 
-    const packageWhere = { status: { [Op.ne]: "Cancelado" } };
+    const packageWhere = { status: { [Op.ne]: "Cancelado" }, isHidden: false };
     if (marca) packageWhere.marca = marca;
     if (status) {
       if (["Activo", "Completado", "Cancelado"].includes(status)) {
@@ -374,6 +374,7 @@ const buildSalesPdfBuffer = async ({
   const packages = await CustomerPackage.findAll({
     where: {
       status: { [Op.ne]: "Cancelado" },
+      isHidden: false,
       created_at: where.created_at,
       ...(marca ? { marca } : {}),
     },
@@ -667,9 +668,18 @@ export const getTodayIncome = async (req, res) => {
       },
     });
 
+    const hiddenPackages = await CustomerPackage.findAll({
+      where: { isHidden: true },
+      attributes: ["packageId"],
+    });
+    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+
     const packageIncome = await PackagePayment.sum("amount", {
       where: {
         paid_at: { [Op.between]: [startOfDay, endOfDay] },
+        ...(hiddenPackageIds.length > 0
+          ? { packageId: { [Op.notIn]: hiddenPackageIds } }
+          : {}),
       },
     });
 
@@ -703,15 +713,24 @@ export const getMonthlySummary = async (req, res) => {
 
     const sales = await Sale.findAll({ where: saleWhere });
 
+    const hiddenPackages = await CustomerPackage.findAll({
+      where: { isHidden: true },
+      attributes: ["packageId"],
+    });
+    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+
     const packageIncome = await PackagePayment.sum("amount", {
       where: {
         paid_at: { [Op.between]: [startDate, endDate] },
+        ...(hiddenPackageIds.length > 0
+          ? { packageId: { [Op.notIn]: hiddenPackageIds } }
+          : {}),
       },
     });
-
     const packageWhere = {
       paymentStatus: "Con adeudo",
       status: { [Op.ne]: "Cancelado" },
+      isHidden: false,
     };
     if (marca) packageWhere.marca = marca;
 
@@ -721,6 +740,7 @@ export const getMonthlySummary = async (req, res) => {
 
     const packageTotalWhere = {
       status: { [Op.ne]: "Cancelado" },
+      isHidden: false,
       created_at: { [Op.between]: [startDate, endDate] },
     };
     if (marca) packageTotalWhere.marca = marca;
@@ -733,6 +753,7 @@ export const getMonthlySummary = async (req, res) => {
       where: {
         paymentStatus: "Pagado",
         status: { [Op.ne]: "Cancelado" },
+        isHidden: false,
         created_at: { [Op.between]: [startDate, endDate] },
         ...(marca ? { marca } : {}),
       },
@@ -794,6 +815,7 @@ export const getPendingAccounts = async (req, res) => {
     const packageWhere = {
       paymentStatus: "Con adeudo",
       status: { [Op.ne]: "Cancelado" },
+      isHidden: false,
     };
     if (marca) packageWhere.marca = marca;
     if (search) {

@@ -126,7 +126,7 @@ export const createPackage = async (req, res) => {
 export const getAllPackages = async (req, res) => {
   try {
     const { marca, status, paymentStatus, search } = req.query;
-    const where = { "$customer.is_hidden$": false };
+    const where = { "$customer.is_hidden$": false, isHidden: false };
     if (marca) where.marca = marca;
     if (status) where.status = status;
     if (paymentStatus) where.paymentStatus = paymentStatus;
@@ -154,7 +154,7 @@ export const getPackagesByCustomer = async (req, res) => {
   try {
     const { customerId } = req.params;
     const packages = await CustomerPackage.findAll({
-      where: { customerId },
+      where: { customerId, isHidden: false },
       include: packageIncludes,
       order: [["created_at", "DESC"]],
     });
@@ -474,4 +474,46 @@ export const syncPackageSessionOnCompletion = async (
     },
     { transaction },
   );
+};
+export const hidePackage = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const pkg = await CustomerPackage.findByPk(id, {
+      include: [{ model: PackageSession, as: "sessions" }],
+      transaction: t,
+    });
+
+    if (!pkg) {
+      await t.rollback();
+      return res.status(404).json({ message: "Paquete no encontrado" });
+    }
+
+    // Oculta también todas las citas ligadas a las sesiones de este
+    // paquete, para que no sigan apareciendo en la Agenda.
+    const appointmentIds = pkg.sessions
+      .map((s) => s.appointmentId)
+      .filter(Boolean);
+
+    if (appointmentIds.length > 0) {
+      await Appointment.update(
+        { isHidden: true },
+        {
+          where: { appointmentId: appointmentIds },
+          transaction: t,
+        },
+      );
+    }
+
+    await pkg.update({ isHidden: true }, { transaction: t });
+
+    await t.commit();
+    res.status(200).json({ message: "Paquete eliminado correctamente" });
+  } catch (error) {
+    await t.rollback();
+    res.status(500).json({
+      message: "Server error while hiding package",
+      error: error.message,
+    });
+  }
 };

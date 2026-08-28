@@ -59,6 +59,11 @@ const CustomerPackage = sequelize.define(
       allowNull: false,
       defaultValue: "Activo",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: "is_hidden",
+    },
     notes: { type: DataTypes.TEXT, allowNull: true },
     soldByUserId: {
       type: DataTypes.INTEGER,

@@ -11,6 +11,7 @@ import {
   scheduleNextSession,
   cancelPackage,
 } from "../controllers/packageController.js";
+import { hidePackage } from "../controllers/packageController.js";
 
 const router = express.Router();
 
@@ -57,4 +58,5 @@ router.put(
   writeLimiter,
   updatePackage,
 );
+router.patch("/:id/hide", protect, restrictTo("Administrador"), hidePackage);
 export default router;
