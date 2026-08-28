@@ -55,12 +55,14 @@ const AppointmentDetailsModal = ({
   // Solo se puede eliminar (ocultar) una cita que todavía no tiene
   // expediente clínico registrado — si ya se llenó el formulario, la
   // única opción es editarla o cancelarla, nunca eliminarla.
-  const canDelete = isAdmin && !hasAssessment;
+  const canDelete = isAdmin;
 
   const handleDelete = async () => {
     const confirmed = await showConfirm({
       title: "¿Eliminar esta cita?",
-      text: "La cita dejará de verse en la agenda y en el sistema. Esta acción no se puede deshacer desde aquí.",
+      text: hasAssessment
+        ? "Esta cita ya tiene un expediente clínico registrado. Al eliminarla, el expediente también dejará de verse en el historial de la paciente. Esta acción no se puede deshacer desde aquí."
+        : "La cita dejará de verse en la agenda y en el sistema. Esta acción no se puede deshacer desde aquí.",
       icon: "warning",
       confirmButtonText: "Sí, eliminar",
     });
@@ -69,7 +71,9 @@ const AppointmentDetailsModal = ({
     setDeleting(true);
     showLoading("Eliminando cita...");
     try {
-      await api.patch(`/appointments/${appointment.appointmentId}/hide`);
+      await api.patch(`/appointments/${appointment.appointmentId}/hide`, {
+        confirmWithAssessment: hasAssessment,
+      });
       closeAlert();
       showToast("success", "Cita eliminada correctamente");
       onDeleted?.();

@@ -36,7 +36,7 @@ export const getLatestLaserAssessmentByCustomer = async (req, res) => {
     const { customerId } = req.params;
 
     const assessment = await LaserMedicalAssessment.findOne({
-      where: { customerId },
+      where: { customerId, isHidden: false },
       include: fullIncludes,
       order: [[sequelize.col("created_at"), "DESC"]],
     });
@@ -62,7 +62,7 @@ export const getLaserAssessmentHistoryByCustomer = async (req, res) => {
     const { customerId } = req.params;
 
     const assessments = await LaserMedicalAssessment.findAll({
-      where: { customerId },
+      where: { customerId, isHidden: false },
       include: fullIncludes,
       order: [[sequelize.col("created_at"), "DESC"]],
     });
@@ -219,6 +219,7 @@ export const createLaserAssessment = async (req, res) => {
 export const getAllLaserAssessments = async (req, res) => {
   try {
     const assessments = await LaserMedicalAssessment.findAll({
+      where: { isHidden: false },
       include: [
         {
           model: Customer,
@@ -432,20 +433,21 @@ export const updateLaserAssessment = async (req, res) => {
     }
 
     if (clinicalConditions) {
-      const existingConditions = await LaserClinicalCondition.findOne({
+      await LaserClinicalCondition.findOne({
         where: { laserAssessmentId: id },
         transaction: t,
+      }).then(async (existingConditions) => {
+        if (existingConditions) {
+          await existingConditions.update(clinicalConditions, {
+            transaction: t,
+          });
+        } else {
+          await LaserClinicalCondition.create(
+            { ...clinicalConditions, laserAssessmentId: id },
+            { transaction: t },
+          );
+        }
       });
-      if (existingConditions) {
-        await existingConditions.update(clinicalConditions, {
-          transaction: t,
-        });
-      } else {
-        await LaserClinicalCondition.create(
-          { ...clinicalConditions, laserAssessmentId: id },
-          { transaction: t },
-        );
-      }
     }
 
     await t.commit();

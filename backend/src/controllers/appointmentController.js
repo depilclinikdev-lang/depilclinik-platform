@@ -308,28 +308,32 @@ export const hideAppointment = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
+    const { confirmWithAssessment } = req.body;
 
     const appointment = await Appointment.findByPk(id, {
-      include: ["medicalAssessment", "laserAssessment", "packageSession"],
+      include: [
+        "medicalAssessment",
+        "laserAssessment",
+        "packageSession",
+        "sale",
+      ],
       transaction: t,
     });
-
-    const hasSignedAssessment =
-      (appointment?.medicalAssessment &&
-        appointment.medicalAssessment.hasSignedConsent) ||
-      (appointment?.laserAssessment &&
-        appointment.laserAssessment.hasSignedConsent);
 
     if (!appointment) {
       await t.rollback();
       return res.status(404).json({ message: "Cita no encontrada" });
     }
 
-    if (hasSignedAssessment) {
+    const hasAssessment =
+      appointment.medicalAssessment || appointment.laserAssessment;
+
+    if (hasAssessment && !confirmWithAssessment) {
       await t.rollback();
-      return res.status(400).json({
+      return res.status(409).json({
         message:
-          "Esta cita ya tiene un expediente clínico registrado y no puede eliminarse. Puedes cancelarla en su lugar.",
+          "Esta cita ya tiene un expediente clínico registrado. Al eliminarla, el expediente también dejará de ser visible en el historial de la paciente.",
+        requiresAssessmentConfirmation: true,
       });
     }
 
@@ -338,6 +342,25 @@ export const hideAppointment = async (req, res) => {
         { appointmentId: null, status: "Pendiente" },
         { transaction: t },
       );
+    }
+
+    if (appointment.medicalAssessment) {
+      await appointment.medicalAssessment.update(
+        { isHidden: true },
+        { transaction: t },
+      );
+    }
+    if (appointment.laserAssessment) {
+      await appointment.laserAssessment.update(
+        { isHidden: true },
+        { transaction: t },
+      );
+    }
+
+    // Si la cita ya se cobró (tiene una venta registrada), esa venta
+    // debe dejar de contar en cualquier reporte de ingresos.
+    if (appointment.sale) {
+      await appointment.sale.update({ isHidden: true }, { transaction: t });
     }
 
     await appointment.update({ isHidden: true }, { transaction: t });

@@ -254,7 +254,7 @@ export const getSalesHistory = async (req, res) => {
       limit = 25,
     } = req.query;
 
-    const saleWhere = {};
+    const saleWhere = { isHidden: false };
     if (marca) saleWhere.marca = marca;
     if (status && ["Liquidada", "Con adeudo", "Cancelada"].includes(status)) {
       saleWhere.status = status;
@@ -348,7 +348,7 @@ const buildSalesPdfBuffer = async ({
   search,
   generatedByName,
 }) => {
-  const where = {};
+  const where = { isHidden: false };
   if (marca) where.marca = marca;
 
   if (dateFrom || dateTo) {
@@ -665,6 +665,7 @@ export const getTodayIncome = async (req, res) => {
       where: {
         created_at: { [Op.between]: [startOfDay, endOfDay] },
         status: { [Op.ne]: "Cancelada" },
+        isHidden: false,
       },
     });
 
@@ -708,6 +709,7 @@ export const getMonthlySummary = async (req, res) => {
 
     const saleWhere = {
       created_at: { [Op.between]: [startDate, endDate] },
+      isHidden: false,
     };
     if (marca) saleWhere.marca = marca;
 
@@ -794,7 +796,7 @@ export const getMonthlySummary = async (req, res) => {
 export const getPendingAccounts = async (req, res) => {
   try {
     const { search, marca } = req.query;
-    const saleWhere = { status: "Con adeudo" };
+    const saleWhere = { status: "Con adeudo", isHidden: false };
 
     if (marca) saleWhere.marca = marca;
     if (search) {
@@ -861,6 +863,7 @@ export const getCustomerPendingDebts = async (req, res) => {
       where: {
         customerId,
         status: "Con adeudo",
+        isHidden: false,
       },
       include: saleIncludes,
     });

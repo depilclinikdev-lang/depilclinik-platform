@@ -56,6 +56,11 @@ const Sale = sequelize.define(
       allowNull: false,
       defaultValue: "Con adeudo",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: "is_hidden",
+    },
     balance: {
       type: DataTypes.VIRTUAL,
       get() {

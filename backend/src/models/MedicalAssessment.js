@@ -135,6 +135,11 @@ const MedicalAssessment = sequelize.define(
       defaultValue: false,
       field: "locked_for_collaborator",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: "is_hidden",
+    },
   },
   {
     tableName: "Medical_Assessments",

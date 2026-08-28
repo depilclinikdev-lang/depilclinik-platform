@@ -57,7 +57,7 @@ export const getLatestAssessmentByCustomer = async (req, res) => {
     const { customerId } = req.params;
 
     const assessment = await MedicalAssessment.findOne({
-      where: { customerId },
+      where: { customerId, isHidden: false },
       include: fullIncludes,
       order: [["created_at", "DESC"]],
     });
@@ -83,7 +83,7 @@ export const getAssessmentHistoryByCustomer = async (req, res) => {
     const { customerId } = req.params;
 
     const assessments = await MedicalAssessment.findAll({
-      where: { customerId },
+      where: { customerId, isHidden: false },
       include: fullIncludes,
       order: [["created_at", "DESC"]],
     });
@@ -384,6 +384,7 @@ export const createAssessment = async (req, res) => {
 export const getAllAssessments = async (req, res) => {
   try {
     const assessments = await MedicalAssessment.findAll({
+      where: { isHidden: false },
       include: [
         {
           model: Customer,
@@ -431,6 +432,7 @@ export const getAssessmentById = async (req, res) => {
     });
   }
 };
+
 export const createHistoricalAssessment = async (req, res) => {
   const t = await sequelize.transaction();
 
