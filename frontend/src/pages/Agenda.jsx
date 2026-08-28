@@ -84,18 +84,24 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
   const events = useMemo(() => {
     return appointments
       .filter((appt) => appt.startTime && appt.endTime)
-      .map((appt) => ({
-        id: appt.appointmentId,
-        title: `${appt.status === "Completada" && !appt.sale && !appt.packageSession ? "💲 " : ""}${appt.customer?.name || "Cliente"} · ${appt.service?.name || ""}`,
-        start: new Date(appt.startTime),
-        end: new Date(appt.endTime),
-        marca: appt.marca,
-        status: appt.status,
-        needsCheckout:
-          appt.status === "Completada" && !appt.sale && !appt.packageSession,
-        resource: appt,
-      }));
-  }, [appointments]);
+      .map((appt) => {
+        const needsCheckout =
+          isAdmin &&
+          appt.status === "Completada" &&
+          !appt.sale &&
+          !appt.packageSession;
+        return {
+          id: appt.appointmentId,
+          title: `${needsCheckout ? "💲 " : ""}${appt.customer?.name || "Cliente"} · ${appt.service?.name || ""}`,
+          start: new Date(appt.startTime),
+          end: new Date(appt.endTime),
+          marca: appt.marca,
+          status: appt.status,
+          needsCheckout,
+          resource: appt,
+        };
+      });
+  }, [appointments, isAdmin]);
 
   const eventPropGetter = useCallback((event) => {
     const statusColor = STATUS_META[event.status]?.color || "#5b9fa6";
@@ -245,6 +251,7 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
         }}
         onEdit={isAdmin ? handleEditAppointment : undefined}
         onDeleted={fetchAppointments}
+        isAdmin={isAdmin}
       />
 
       <CheckoutModal

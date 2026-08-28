@@ -29,14 +29,15 @@ const STATUS_COLORS = {
 };
 
 const SaleDetailModal = ({ isOpen, sale, onClose, onPaymentSuccess }) => {
-  useBackButtonClose(isOpen, onClose);
-  if (!isOpen || !sale) return null;
-
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Efectivo");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useBackButtonClose(isOpen, onClose);
+
+  if (!isOpen || !sale) return null;
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat("es-MX", {

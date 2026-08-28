@@ -18,6 +18,7 @@ const AppointmentDetailsModal = ({
   onAttend,
   onEdit,
   onDeleted,
+  isAdmin,
 }) => {
   const [deleting, setDeleting] = useState(false);
 
@@ -54,7 +55,7 @@ const AppointmentDetailsModal = ({
   // Solo se puede eliminar (ocultar) una cita que todavía no tiene
   // expediente clínico registrado — si ya se llenó el formulario, la
   // única opción es editarla o cancelarla, nunca eliminarla.
-  const canDelete = !hasAssessment;
+  const canDelete = isAdmin && !hasAssessment;
 
   const handleDelete = async () => {
     const confirmed = await showConfirm({
