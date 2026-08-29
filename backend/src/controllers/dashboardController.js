@@ -100,6 +100,49 @@ export const getTopTreatments = async (req, res) => {
   }
 };
 
+// Tratamientos que más ha realizado el colaborador logueado, en el mes actual
+export const getMyTopTreatments = async (req, res) => {
+  try {
+    const now = new Date();
+    const year = req.query.year || now.getFullYear();
+    const month = req.query.month || now.getMonth() + 1;
+    const { start, end } = getMonthRange(year, month);
+
+    const results = await Appointment.findAll({
+      where: {
+        userId: req.user.id,
+        status: "Completada",
+        startTime: { [Op.between]: [start, end] },
+        isHidden: false,
+      },
+      attributes: [
+        "serviceId",
+        [fn("COUNT", col("Appointment.appointment_id")), "count"],
+      ],
+      include: [
+        { model: Service, as: "service", attributes: ["name", "brand"] },
+      ],
+      group: ["serviceId", "service.service_id"],
+      order: [[literal("count"), "DESC"]],
+      limit: 5,
+    });
+
+    const formatted = results.map((r) => ({
+      serviceId: r.serviceId,
+      name: r.service?.name || "Servicio eliminado",
+      brand: r.service?.brand,
+      count: Number(r.get("count")),
+    }));
+
+    res.status(200).json(formatted);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching your top treatments",
+      error: error.message,
+    });
+  }
+};
+
 // Rendimiento de colaboradores del mes (servicios finalizados)
 export const getCollaboratorPerformance = async (req, res) => {
   try {
@@ -275,6 +318,16 @@ export const getMyUpcomingAppointments = async (req, res) => {
       include: [
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
         { model: Service, as: "service", attributes: ["name"] },
+        {
+          model: MedicalAssessment,
+          as: "medicalAssessment",
+          attributes: ["assessmentId"],
+        },
+        {
+          model: LaserMedicalAssessment,
+          as: "laserAssessment",
+          attributes: ["laserAssessmentId"],
+        },
       ],
       order: [["startTime", "ASC"]],
       limit: 12,
@@ -295,7 +348,7 @@ export const getMyPendingAssessments = async (req, res) => {
     const appointments = await Appointment.findAll({
       where: {
         userId: req.user.id,
-        status: "Completada",
+        status: { [Op.ne]: "Cancelada" },
         isHidden: false,
       },
       include: [
@@ -312,7 +365,7 @@ export const getMyPendingAssessments = async (req, res) => {
           attributes: ["laserAssessmentId"],
         },
       ],
-      order: [["startTime", "DESC"]],
+      order: [["startTime", "ASC"]],
       limit: 20,
     });
 

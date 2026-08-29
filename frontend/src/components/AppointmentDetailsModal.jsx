@@ -166,8 +166,9 @@ const AppointmentDetailsModal = ({
           {hasAssessment && (
             <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-emerald-700">
               <LuFileCheck size={16} className="shrink-0" />
-              Expediente ya registrado. Consúltalo desde el expediente del
-              cliente.
+              {isAdmin
+                ? "Expediente ya registrado. Consúltalo desde el expediente del cliente."
+                : "Ya atendiste esta cita y el expediente quedó registrado correctamente."}
             </div>
           )}
 

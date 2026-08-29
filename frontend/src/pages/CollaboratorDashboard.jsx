@@ -4,7 +4,9 @@ import {
   LuCalendarCheck,
   LuClipboardCheck,
   LuClock,
-  LuTriangleAlert,
+  LuCalendarDays,
+  LuSparkles,
+  LuChevronRight,
 } from "react-icons/lu";
 
 const StatCard = ({ icon: Icon, label, value, color = "#197e88" }) => (
@@ -21,6 +23,13 @@ const StatCard = ({ icon: Icon, label, value, color = "#197e88" }) => (
     </div>
   </div>
 );
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
+};
 
 // Clasifica una cita en "Hoy", "Mañana" o "Después" comparando solo la fecha
 // (sin horas), para poder agrupar visualmente la tabla de próximas citas.
@@ -46,14 +55,18 @@ const BUCKET_COLORS = {
   Después: "bg-gray-100 text-gray-500",
 };
 
-const CollaboratorDashboard = ({ userName }) => {
+const CollaboratorDashboard = ({
+  userName,
+  onNavigate,
+  onAttendAppointment,
+}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [todayAppointments, setTodayAppointments] = useState([]);
   const [monthlyCount, setMonthlyCount] = useState(0);
   const [upcoming, setUpcoming] = useState([]);
-  const [pendingAssessments, setPendingAssessments] = useState([]);
+  const [myTopTreatments, setMyTopTreatments] = useState([]);
 
   const formatTime = (value) =>
     new Date(value).toLocaleString("es-MX", {
@@ -63,31 +76,34 @@ const CollaboratorDashboard = ({ userName }) => {
       minute: "2-digit",
     });
 
-  const fetchAll = async () => {
+  const fetchAll = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
-      const [todayRes, countRes, upcomingRes, pendingRes] = await Promise.all([
-        api.get("/dashboard/my-today-appointments"),
-        api.get("/dashboard/my-monthly-count"),
-        api.get("/dashboard/my-upcoming-appointments"),
-        api.get("/dashboard/my-pending-assessments"),
-      ]);
+      if (!silent) setLoading(true);
+      const [todayRes, countRes, upcomingRes, topTreatmentsRes] =
+        await Promise.all([
+          api.get("/dashboard/my-today-appointments"),
+          api.get("/dashboard/my-monthly-count"),
+          api.get("/dashboard/my-upcoming-appointments"),
+          api.get("/dashboard/my-top-treatments"),
+        ]);
 
       setTodayAppointments(todayRes.data);
       setMonthlyCount(countRes.data.completedCount);
       setUpcoming(upcomingRes.data || []);
-      setPendingAssessments(pendingRes.data);
+      setMyTopTreatments(topTreatmentsRes.data || []);
       setError("");
     } catch (err) {
       setError("No se pudo cargar tu información del día.");
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchAll();
+    const interval = setInterval(() => fetchAll({ silent: true }), 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const groupedUpcoming = upcoming.reduce((acc, appt) => {
@@ -115,16 +131,22 @@ const CollaboratorDashboard = ({ userName }) => {
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold mb-2 bg-blue-50 text-secondary border border-blue-100">
-          Dashboard Colaborador
-        </span>
-        <p className="text-lg font-bold text-primary">
-          Hola, {userName?.split(" ")[0] || "colaborador"}
-        </p>
+      <div className="bg-linear-to-r from-secondary to-depil p-6 rounded-2xl shadow-sm flex items-center gap-4 text-white">
+        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <LuSparkles size={26} />
+        </div>
+        <div>
+          <p className="text-xl font-black flex items-center gap-2">
+            {getGreeting()}, {userName?.split(" ")[0] || "colaborador"}
+            <span className="text-3xl">👋</span>
+          </p>
+          <p className="text-sm text-white/80 mt-0.5">
+            Aquí tienes el resumen de tu día.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <StatCard
           icon={LuCalendarCheck}
           label="Citas para hoy"
@@ -137,6 +159,23 @@ const CollaboratorDashboard = ({ userName }) => {
           value={monthlyCount}
           color="#16a34a"
         />
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate("agenda")}
+            className="group bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:border-secondary hover:shadow-md hover:bg-secondary/5 transition-all cursor-pointer text-left"
+          >
+            <div className="w-11 h-11 rounded-full bg-secondary/10 text-secondary flex items-center justify-center shrink-0 group-hover:bg-secondary group-hover:text-white transition-colors">
+              <LuCalendarDays size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-primary">Ir a mi Agenda</p>
+            </div>
+            <LuChevronRight
+              size={16}
+              className="text-gray-300 group-hover:text-secondary group-hover:translate-x-0.5 transition-all shrink-0"
+            />
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
@@ -160,7 +199,7 @@ const CollaboratorDashboard = ({ userName }) => {
                 </span>
                 <div className="overflow-x-auto">
                   <div className="min-w-125">
-                    <div className="grid grid-cols-[2fr_2fr_1.2fr] gap-2 border-b border-gray-100 pb-2">
+                    <div className="grid grid-cols-[2fr_2fr_1.2fr_auto] gap-2 border-b border-gray-100 pb-2">
                       <span className="p-3 text-xs font-bold text-accent">
                         Cliente
                       </span>
@@ -170,24 +209,45 @@ const CollaboratorDashboard = ({ userName }) => {
                       <span className="p-3 text-xs font-bold text-accent">
                         Horario
                       </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Expediente
+                      </span>
                     </div>
                     <div className="divide-y divide-gray-100">
-                      {groupedUpcoming[bucket].map((appt) => (
-                        <div
-                          key={appt.appointmentId}
-                          className="grid grid-cols-[2fr_2fr_1.2fr] gap-2 hover:bg-gray-50/50 transition-colors"
-                        >
-                          <span className="p-3 text-sm font-semibold text-primary">
-                            {appt.customer?.name || "—"}
-                          </span>
-                          <span className="p-3 text-sm text-gray-600">
-                            {appt.service?.name || "—"}
-                          </span>
-                          <span className="p-3 text-sm text-gray-600">
-                            {formatTime(appt.startTime || appt.start_time)}
-                          </span>
-                        </div>
-                      ))}
+                      {groupedUpcoming[bucket].map((appt) => {
+                        const hasAssessment =
+                          appt.marca === "Modelha DK"
+                            ? Boolean(appt.medicalAssessment)
+                            : Boolean(appt.laserAssessment);
+                        return (
+                          <div
+                            key={appt.appointmentId}
+                            className="grid grid-cols-[2fr_2fr_1.2fr_auto] gap-2 items-center hover:bg-gray-50/50 transition-colors"
+                          >
+                            <span className="p-3 text-sm font-semibold text-primary">
+                              {appt.customer?.name || "—"}
+                            </span>
+                            <span className="p-3 text-sm text-gray-600">
+                              {appt.service?.name || "—"}
+                            </span>
+                            <span className="p-3 text-sm text-gray-600">
+                              {formatTime(appt.startTime || appt.start_time)}
+                            </span>
+                            <span className="p-3">
+                              {!hasAssessment && onAttendAppointment && (
+                                <button
+                                  onClick={() =>
+                                    onAttendAppointment(appt.appointmentId)
+                                  }
+                                  className="text-[11px] font-bold text-white bg-secondary hover:bg-[#14676f] transition-colors px-3 py-1.5 rounded-full cursor-pointer whitespace-nowrap"
+                                >
+                                  Llenar
+                                </button>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -197,27 +257,25 @@ const CollaboratorDashboard = ({ userName }) => {
         )}
       </div>
 
-      {pendingAssessments.length > 0 && (
-        <div className="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-6">
-          <h3 className="text-sm font-bold text-amber-800 uppercase mb-4 flex items-center gap-2">
-            <LuTriangleAlert size={16} /> Expedientes Pendientes de Llenar
+      {myTopTreatments.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <h3 className="text-sm font-bold text-primary uppercase mb-4">
+            Mis Tratamientos Más Realizados (mes)
           </h3>
-          <div className="flex flex-col gap-2">
-            {pendingAssessments.map((appt) => (
-              <div
-                key={appt.appointmentId}
-                className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-amber-100"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-primary">
-                    {appt.customer?.name || "—"}
+          <div className="flex flex-col gap-3">
+            {myTopTreatments.map((t, index) => (
+              <div key={t.serviceId} className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-secondary/10 text-secondary text-xs font-bold flex items-center justify-center shrink-0">
+                  {index + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-primary truncate">
+                    {t.name}
                   </p>
-                  <p className="text-xs text-accent">
-                    {appt.service?.name} · {appt.service?.brand}
-                  </p>
+                  <p className="text-[11px] text-accent">{t.brand}</p>
                 </div>
-                <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
-                  Pendiente
+                <span className="text-xs font-bold text-primary shrink-0">
+                  {t.count}
                 </span>
               </div>
             ))}

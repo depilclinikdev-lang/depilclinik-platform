@@ -76,6 +76,8 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
             <CollaboratorDashboard
               userRole={user?.role}
               userName={user?.name}
+              onNavigate={setActiveView}
+              onAttendAppointment={onAttendAppointment}
             />
           );
         }

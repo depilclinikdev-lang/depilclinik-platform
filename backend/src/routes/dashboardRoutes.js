@@ -8,6 +8,7 @@ import {
   getMyMonthlyCount,
   getMyUpcomingAppointments,
   getMyPendingAssessments,
+  getMyTopTreatments,
 } from "../controllers/dashboardController.js";
 import { protect } from "../middlewares/auth.js";
 import { cacheMiddleware } from "../middlewares/cache.js";
@@ -43,5 +44,6 @@ router.get("/my-today-appointments", protect, getMyTodayAppointments);
 router.get("/my-monthly-count", protect, getMyMonthlyCount);
 router.get("/my-upcoming-appointments", protect, getMyUpcomingAppointments);
 router.get("/my-pending-assessments", protect, getMyPendingAssessments);
+router.get("/my-top-treatments", protect, getMyTopTreatments);
 
 export default router;
