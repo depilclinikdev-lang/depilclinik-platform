@@ -110,7 +110,7 @@ export const getCollaboratorPerformance = async (req, res) => {
 
     const medicalResults = await MedicalAssessment.findAll({
       where: {
-        created_at: { [Op.between]: [start, end] },
+        service_date: { [Op.between]: [start, end] },
         filledByUserId: { [Op.ne]: null },
       },
       attributes: [
@@ -123,7 +123,7 @@ export const getCollaboratorPerformance = async (req, res) => {
 
     const laserResults = await LaserMedicalAssessment.findAll({
       where: {
-        created_at: { [Op.between]: [start, end] },
+        service_date: { [Op.between]: [start, end] },
         filledByUserId: { [Op.ne]: null },
       },
       attributes: [
@@ -237,14 +237,14 @@ export const getMyMonthlyCount = async (req, res) => {
     const medicalCount = await MedicalAssessment.count({
       where: {
         filledByUserId: req.user.id,
-        created_at: { [Op.between]: [start, end] },
+        service_date: { [Op.between]: [start, end] },
       },
     });
 
     const laserCount = await LaserMedicalAssessment.count({
       where: {
         filledByUserId: req.user.id,
-        created_at: { [Op.between]: [start, end] },
+        service_date: { [Op.between]: [start, end] },
       },
     });
 

@@ -36,6 +36,11 @@ const MedicalAssessment = sequelize.define(
       allowNull: true,
       field: "service_id",
     },
+    serviceDate: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+      field: "service_date",
+    },
     consultationReason: {
       type: DataTypes.TEXT,
       allowNull: false,

@@ -8,6 +8,23 @@ import {
 } from "../../constants/clinicalRecordOptions";
 import AssessmentPhotosGallery from "./AssessmentPhotosGallery";
 
+const formatServiceDate = (value) => {
+  if (!value) return null;
+  const [year, month, day] = String(value).slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
+};
+
+const formatCapturedAt = (value) => {
+  if (!value) return null;
+  return new Date(value).toLocaleString("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const Section = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -232,6 +249,16 @@ const AssessmentSummaryView = ({ assessment, onEdit }) => {
       )}
 
       <Section title="General">
+        <Field
+          label="Fecha del servicio"
+          value={formatServiceDate(assessment.serviceDate)}
+        />
+        <Field
+          label="Fecha de captura en el sistema"
+          value={formatCapturedAt(
+            assessment.createdAt || assessment.created_at,
+          )}
+        />
         <Field
           label="Motivo de consulta"
           value={assessment.consultationReason}

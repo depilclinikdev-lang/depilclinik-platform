@@ -28,7 +28,24 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
 
   const idKey = brand === "Modelha DK" ? "assessmentId" : "laserAssessmentId";
 
+  // Para campos tipo DATE (serviceDate) — se guardan sin hora, así que hay
+  // que leerlos en UTC para que no se recorran un día según la zona horaria
+  // del navegador.
   const formatDate = (value) => {
+    if (!value) return "Fecha no registrada";
+    const parsed = new Date(value);
+    if (isNaN(parsed.getTime())) return "Fecha no registrada";
+    return parsed.toLocaleDateString("es-MX", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  };
+
+  // Para timestamps reales (createdAt) — deben mostrarse en la hora local
+  // del navegador, no en UTC.
+  const formatCapturedAt = (value) => {
     if (!value) return "Fecha no registrada";
     const parsed = new Date(value);
     if (isNaN(parsed.getTime())) return "Fecha no registrada";
@@ -47,6 +64,7 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
       day: "numeric",
       month: "short",
       year: "2-digit",
+      timeZone: "UTC",
     });
   };
 
@@ -63,8 +81,8 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
       const response = await api.get(endpoint);
       const sorted = [...(response.data || [])].sort(
         (a, b) =>
-          new Date(b.createdAt || b.created_at) -
-          new Date(a.createdAt || a.created_at),
+          new Date(b.serviceDate || b.service_date) -
+          new Date(a.serviceDate || a.service_date),
       );
       setHistory(sorted);
       if (sorted.length > 0) {
@@ -188,6 +206,7 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
                 customerName={customer.name}
                 pendingPhotos={{}}
                 onPhotoSelect={() => {}}
+                initialSetupDate={setupData.assessmentDate}
               />
             ) : (
               <LaserAssessmentForm
@@ -196,6 +215,7 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
                 customerName={customer.name}
                 pendingPhotos={{}}
                 onPhotoSelect={() => {}}
+                initialSetupDate={setupData.assessmentDate}
               />
             )}
           </div>
@@ -360,7 +380,7 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
                       </p>
                       <p className="text-[11px] text-accent flex items-center gap-1 mt-0.5">
                         <LuCalendar size={11} />
-                        {formatShortDate(item.createdAt || item.created_at)}
+                        {formatShortDate(item.serviceDate || item.service_date)}
                       </p>
                       {(item.service?.name ||
                         item.appointment?.service?.name) && (
@@ -380,11 +400,20 @@ const CustomerAssessmentHistoryPage = ({ customer, onBack }) => {
             {selectedAssessment ? (
               <>
                 <div className="flex items-start justify-between gap-2 mb-4 pb-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <LuFileText size={18} className="text-depil" />
-                    <p className="text-sm font-bold text-primary">
-                      Sesión del{" "}
-                      {formatDate(
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <LuFileText size={18} className="text-depil" />
+                      <p className="text-sm font-bold text-primary">
+                        Servicio del{" "}
+                        {formatDate(
+                          selectedAssessment.serviceDate ||
+                            selectedAssessment.service_date,
+                        )}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-accent mt-0.5 ml-6">
+                      Capturado en el sistema el{" "}
+                      {formatCapturedAt(
                         selectedAssessment.createdAt ||
                           selectedAssessment.created_at,
                       )}

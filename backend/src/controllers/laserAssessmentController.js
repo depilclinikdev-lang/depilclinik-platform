@@ -38,7 +38,7 @@ export const getLatestLaserAssessmentByCustomer = async (req, res) => {
     const assessment = await LaserMedicalAssessment.findOne({
       where: { customerId, isHidden: false },
       include: fullIncludes,
-      order: [[sequelize.col("created_at"), "DESC"]],
+      order: [[sequelize.col("service_date"), "DESC"]],
     });
 
     if (!assessment) {
@@ -64,7 +64,7 @@ export const getLaserAssessmentHistoryByCustomer = async (req, res) => {
     const assessments = await LaserMedicalAssessment.findAll({
       where: { customerId, isHidden: false },
       include: fullIncludes,
-      order: [[sequelize.col("created_at"), "DESC"]],
+      order: [[sequelize.col("service_date"), "DESC"]],
     });
 
     res.status(200).json(assessments);
@@ -142,6 +142,7 @@ export const createLaserAssessment = async (req, res) => {
       {
         customerId: appointment.customerId,
         appointmentId: appointment.appointmentId,
+        serviceDate: appointment.startTime,
         ...general,
         // Se registra siempre quién llenó el expediente (colaborador o
         // administrador), para dejar trazabilidad de quién atendió la
@@ -228,7 +229,7 @@ export const getAllLaserAssessments = async (req, res) => {
           where: { isHidden: false },
         },
       ],
-      order: [[sequelize.col("created_at"), "DESC"]],
+      order: [[sequelize.col("service_date"), "DESC"]],
     });
 
     res.status(200).json(assessments);
@@ -281,7 +282,7 @@ export const createHistoricalLaserAssessment = async (req, res) => {
       });
     }
 
-    const parsedDate = new Date(assessmentDate);
+    const parsedDate = new Date(`${assessmentDate}T00:00:00`);
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -319,11 +320,12 @@ export const createHistoricalLaserAssessment = async (req, res) => {
         appointmentId: null,
         serviceId,
         performedByUserId: performedByUserId || null,
+        serviceDate: assessmentDate,
         ...general,
+        serviceDate: parsedDate,
         filledByUserId: req.user.id,
         filledAt: new Date(),
         lockedForCollaborator: false,
-        createdAt: parsedDate,
       },
       { transaction: t },
     );
@@ -402,7 +404,7 @@ export const updateLaserAssessment = async (req, res) => {
       updatePayload.performedByUserId = performedByUserId;
 
     if (assessmentDate) {
-      const parsedDate = new Date(assessmentDate);
+      const parsedDate = new Date(`${assessmentDate}T00:00:00`);
       const today = new Date();
       today.setHours(23, 59, 59, 999);
       if (isNaN(parsedDate.getTime()) || parsedDate > today) {
@@ -411,7 +413,7 @@ export const updateLaserAssessment = async (req, res) => {
           message: "La fecha no puede ser posterior al día de hoy",
         });
       }
-      updatePayload.createdAt = parsedDate;
+      updatePayload.serviceDate = assessmentDate;
     }
 
     await existing.update(updatePayload, { transaction: t });

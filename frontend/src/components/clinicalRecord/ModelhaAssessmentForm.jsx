@@ -101,6 +101,7 @@ const zoneItems = (prefix) =>
   ZONES.map((z) => ({ key: `${prefix}${z}`, label: ZONE_LABELS[z] }));
 
 const initialState = {
+  serviceDate: "",
   general: {
     consultationReason: "",
     onsetDateDetails: "",
@@ -228,6 +229,9 @@ const ModelhaAssessmentForm = ({
     if (!assessment) return initialState;
 
     return {
+      serviceDate: assessment.serviceDate
+        ? String(assessment.serviceDate).slice(0, 10)
+        : "",
       general: {
         consultationReason: assessment.consultationReason || "",
         onsetDateDetails: assessment.onsetDateDetails || "",
@@ -365,6 +369,9 @@ const ModelhaAssessmentForm = ({
       : null;
 
     return {
+      ...(isEditMode && form.serviceDate
+        ? { assessmentDate: form.serviceDate }
+        : {}),
       general: {
         ...form.general,
         temperatureC: form.general.temperatureC || null,
@@ -439,6 +446,15 @@ const ModelhaAssessmentForm = ({
 
       {activeTab === "General" && (
         <div className="flex flex-col gap-4">
+          {isEditMode && (
+            <TextField
+              label="Fecha del servicio *"
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
+              value={form.serviceDate}
+              onChange={(v) => setForm((prev) => ({ ...prev, serviceDate: v }))}
+            />
+          )}
           <TextAreaField
             label="Motivo de consulta *"
             value={form.general.consultationReason}

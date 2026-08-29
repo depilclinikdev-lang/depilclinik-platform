@@ -34,6 +34,7 @@ const GYNECO_ITEMS = [
 ];
 
 const initialState = {
+  serviceDate: "",
   general: {
     referredMedia: "",
     hasDiseases: false,
@@ -66,6 +67,9 @@ const LaserAssessmentForm = ({
     if (!assessment) return initialState;
 
     return {
+      serviceDate: assessment.serviceDate
+        ? String(assessment.serviceDate).slice(0, 10)
+        : "",
       general: {
         referredMedia: assessment.referredMedia || "",
         hasDiseases: Boolean(assessment.hasDiseases),
@@ -118,6 +122,9 @@ const LaserAssessmentForm = ({
   };
 
   const buildPayload = () => ({
+    ...(isEditMode && form.serviceDate
+      ? { assessmentDate: form.serviceDate }
+      : {}),
     general: form.general,
     areasOfInterest: form.selectedAreas,
     clinicalConditions: form.clinicalConditions,
@@ -163,6 +170,15 @@ const LaserAssessmentForm = ({
 
       {activeTab === "Información" && (
         <div className="flex flex-col gap-4">
+          {isEditMode && (
+            <TextField
+              label="Fecha del servicio *"
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
+              value={form.serviceDate}
+              onChange={(v) => setForm((prev) => ({ ...prev, serviceDate: v }))}
+            />
+          )}
           <SelectField
             label="¿Dónde nos conociste? *"
             value={form.general.referredMedia}
