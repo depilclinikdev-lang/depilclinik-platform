@@ -14,6 +14,7 @@ import {
   restrictTo,
   canAttendAppointment,
 } from "../middlewares/auth.js";
+import { getHistoricalLaserAssessmentsForCalendar } from "../controllers/laserAssessmentController.js";
 
 const router = express.Router();
 
@@ -66,6 +67,12 @@ router.get(
   protect,
   restrictTo("Administrador"),
   getLaserAssessmentById,
+);
+router.get(
+  "/historical/calendar",
+  protect,
+  restrictTo("Administrador"),
+  getHistoricalLaserAssessmentsForCalendar,
 );
 
 export default router;

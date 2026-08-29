@@ -14,6 +14,7 @@ import {
 } from "../middlewares/auth.js";
 import { createHistoricalAssessment } from "../controllers/assessmentController.js";
 import { updateAssessment } from "../controllers/assessmentController.js";
+import { getHistoricalAssessmentsForCalendar } from "../controllers/assessmentController.js";
 
 const router = express.Router();
 
@@ -55,5 +56,12 @@ router.post(
 router.put("/:id", protect, restrictTo("Administrador"), updateAssessment);
 
 router.get("/:id", protect, restrictTo("Administrador"), getAssessmentById);
+
+router.get(
+  "/historical/calendar",
+  protect,
+  restrictTo("Administrador"),
+  getHistoricalAssessmentsForCalendar,
+);
 
 export default router;

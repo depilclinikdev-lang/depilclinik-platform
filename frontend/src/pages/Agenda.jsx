@@ -6,7 +6,7 @@ import startOfWeek from "date-fns/startOfWeek";
 import getDay from "date-fns/getDay";
 import es from "date-fns/locale/es";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { LuPlus } from "react-icons/lu";
+import { LuPlus, LuFileText } from "react-icons/lu";
 import api from "../services/api";
 import AppointmentModal from "../components/AppointmentModal";
 import AppointmentDetailsModal from "../components/AppointmentDetailsModal";
@@ -29,27 +29,37 @@ const BRAND_COLORS = {
 };
 
 const MONTH_ACCENTS = [
-  "#5b7fa6", // Enero
-  "#c0247d", // Febrero
-  "#7a9e7e", // Marzo
-  "#9b7fb8", // Abril
-  "#e8746a", // Mayo
-  "#197e88", // Junio
-  "#c99a4a", // Julio
-  "#c1694a", // Agosto
-  "#8a5a7a", // Septiembre
-  "#b8622f", // Octubre
-  "#4a5a8a", // Noviembre
-  "#2f7a5e", // Diciembre
+  "#5b7fa6",
+  "#c0247d",
+  "#7a9e7e",
+  "#9b7fb8",
+  "#e8746a",
+  "#197e88",
+  "#c99a4a",
+  "#c1694a",
+  "#8a5a7a",
+  "#b8622f",
+  "#4a5a8a",
+  "#2f7a5e",
 ];
+
+// Parsea una fecha tipo DATEONLY ("2026-07-15") como fecha local pura,
+// sin desfases de zona horaria — igual que ya hicimos en el historial de
+// expedientes.
+const parseDateOnly = (value) => {
+  const [year, month, day] = String(value).slice(0, 10).split("-");
+  return new Date(Number(year), Number(month) - 1, Number(day));
+};
 
 const Agenda = ({ currentUserRole, onAttendAppointment }) => {
   const [appointments, setAppointments] = useState([]);
+  const [historicalAssessments, setHistoricalAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [viewingAppointment, setViewingAppointment] = useState(null);
+  const [viewingHistorical, setViewingHistorical] = useState(null);
   const [currentView, setCurrentView] = useState(Views.MONTH);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewingPackage, setViewingPackage] = useState(null);
@@ -66,8 +76,38 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
   const fetchAppointments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get("/appointments");
-      setAppointments(response.data);
+      const requests = [api.get("/appointments")];
+
+      // Los expedientes históricos (sin cita) solo aplican para
+      // Administrador — solo el admin registra este tipo de expediente.
+      if (isAdmin) {
+        requests.push(
+          api.get("/assessments/historical/calendar"),
+          api.get("/laser-assessments/historical/calendar"),
+        );
+      }
+
+      const [apptRes, modelhaHistRes, laserHistRes] =
+        await Promise.all(requests);
+
+      setAppointments(apptRes.data);
+
+      if (isAdmin) {
+        const combined = [
+          ...(modelhaHistRes?.data || []).map((a) => ({
+            ...a,
+            idKey: `modelha-${a.assessmentId}`,
+            brand: "Modelha DK",
+          })),
+          ...(laserHistRes?.data || []).map((a) => ({
+            ...a,
+            idKey: `laser-${a.laserAssessmentId}`,
+            brand: "Depilclinik",
+          })),
+        ];
+        setHistoricalAssessments(combined);
+      }
+
       setError("");
     } catch (err) {
       setError("No se pudo conectar con la agenda.");
@@ -75,14 +115,14 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     fetchAppointments();
   }, [fetchAppointments]);
 
   const events = useMemo(() => {
-    return appointments
+    const appointmentEvents = appointments
       .filter((appt) => appt.startTime && appt.endTime)
       .map((appt) => {
         const needsCheckout =
@@ -92,6 +132,7 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
           !appt.packageSession;
         return {
           id: appt.appointmentId,
+          type: "appointment",
           title: `${needsCheckout ? "💲 " : ""}${appt.customer?.name || "Cliente"} · ${appt.service?.name || ""}`,
           start: new Date(appt.startTime),
           end: new Date(appt.endTime),
@@ -101,9 +142,39 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
           resource: appt,
         };
       });
-  }, [appointments, isAdmin]);
+
+    // Expedientes históricos: eventos de día completo, sin hora, con un
+    // ícono de expediente para diferenciarlos claramente de una cita real.
+    const historicalEvents = historicalAssessments.map((item) => {
+      const day = parseDateOnly(item.serviceDate);
+      return {
+        id: item.idKey,
+        type: "historical",
+        title: `📋 ${item.customer?.name || "Cliente"} · ${item.service?.name || "Registro histórico"}`,
+        start: day,
+        end: day,
+        allDay: true,
+        marca: item.brand,
+        resource: item,
+      };
+    });
+
+    return [...appointmentEvents, ...historicalEvents];
+  }, [appointments, historicalAssessments, isAdmin]);
 
   const eventPropGetter = useCallback((event) => {
+    if (event.type === "historical") {
+      const brandColor = BRAND_COLORS[event.marca] || "#5b9fa6";
+      return {
+        style: {
+          backgroundColor: "#f3f4f6",
+          color: "#374151",
+          border: `1.5px dashed ${brandColor}`,
+          fontStyle: "italic",
+        },
+      };
+    }
+
     const statusColor = STATUS_META[event.status]?.color || "#5b9fa6";
     const brandColor = BRAND_COLORS[event.marca] || "#5b9fa6";
     return {
@@ -147,6 +218,10 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
 
   const handleSelectEvent = useCallback(
     (event) => {
+      if (event.type === "historical") {
+        setViewingHistorical(event.resource);
+        return;
+      }
       if (event.needsCheckout && isAdmin) {
         setDirectCheckoutAppointment({
           appointmentId: event.resource.appointmentId,
@@ -179,6 +254,12 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
             />
             Depilclinik
           </span>
+          {isAdmin && (
+            <span className="flex items-center gap-2 text-accent font-normal">
+              <span className="w-3.5 h-3.5 rounded border border-dashed border-gray-400 bg-gray-100" />
+              Registro histórico (sin cita)
+            </span>
+          )}
         </div>
 
         {isAdmin && (
@@ -282,6 +363,56 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
           }
         }}
       />
+
+      {viewingHistorical && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-left">
+            <div className="flex items-center gap-2 mb-4">
+              <LuFileText size={20} className="text-secondary" />
+              <h2 className="text-lg font-bold text-primary">
+                Registro Histórico
+              </h2>
+            </div>
+            <div className="flex flex-col gap-3 mb-5">
+              <div>
+                <span className="block text-xs font-bold text-accent uppercase mb-0.5">
+                  Cliente
+                </span>
+                <span className="text-sm font-semibold text-primary">
+                  {viewingHistorical.customer?.name || "—"}
+                </span>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-accent uppercase mb-0.5">
+                  Servicio
+                </span>
+                <span className="text-sm font-semibold text-primary">
+                  {viewingHistorical.service?.name || "—"}
+                </span>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-accent uppercase mb-0.5">
+                  Marca
+                </span>
+                <span className="text-sm font-semibold text-primary">
+                  {viewingHistorical.brand}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-accent bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5 mb-4">
+              Este registro se capturó manualmente, sin una cita agendada. Para
+              editarlo, ve al expediente del cliente en el Directorio de
+              Clientes.
+            </p>
+            <button
+              onClick={() => setViewingHistorical(null)}
+              className="w-full px-5 py-2.5 rounded-full bg-secondary text-white font-bold text-xs hover:bg-[#14676f] transition-colors cursor-pointer shadow-md"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

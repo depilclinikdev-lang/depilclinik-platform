@@ -9,6 +9,7 @@ import { createPendingPhotosForAssessment } from "./assessmentPhotoController.js
 import { syncPackageSessionOnCompletion } from "./packageController.js";
 import Service from "../models/Service.js";
 import User from "../models/User.js";
+import { Op } from "sequelize";
 
 const fullIncludes = [
   { model: LaserAreaOfInterest, as: "areasOfInterest" },
@@ -464,6 +465,34 @@ export const updateLaserAssessment = async (req, res) => {
     console.error("Error updating laser assessment:", error);
     res.status(500).json({
       message: "Server error while updating laser assessment",
+      error: error.message,
+    });
+  }
+};
+export const getHistoricalLaserAssessmentsForCalendar = async (req, res) => {
+  try {
+    const assessments = await LaserMedicalAssessment.findAll({
+      where: {
+        appointmentId: null,
+        isHidden: false,
+        serviceDate: { [Op.ne]: null },
+      },
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: ["customerId", "name"],
+          where: { isHidden: false },
+        },
+        { model: Service, as: "service", attributes: ["serviceId", "name"] },
+      ],
+      attributes: ["laserAssessmentId", "serviceDate", "customerId"],
+    });
+
+    res.status(200).json(assessments);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching historical laser assessments",
       error: error.message,
     });
   }

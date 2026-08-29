@@ -18,6 +18,7 @@ import { createPendingPhotosForAssessment } from "./assessmentPhotoController.js
 import { syncPackageSessionOnCompletion } from "./packageController.js";
 import Service from "../models/Service.js";
 import User from "../models/User.js";
+import { Op } from "sequelize";
 
 const fullIncludes = [
   { model: AssessmentProfessionalTreatment, as: "professionalTreatments" },
@@ -839,6 +840,35 @@ export const updateAssessment = async (req, res) => {
     console.error("Error updating assessment:", error);
     res.status(500).json({
       message: "Server error while updating assessment",
+      error: error.message,
+    });
+  }
+};
+// Expedientes históricos (sin cita) para pintarlos como eventos aparte en Agenda
+export const getHistoricalAssessmentsForCalendar = async (req, res) => {
+  try {
+    const assessments = await MedicalAssessment.findAll({
+      where: {
+        appointmentId: null,
+        isHidden: false,
+        serviceDate: { [Op.ne]: null },
+      },
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: ["customerId", "name"],
+          where: { isHidden: false },
+        },
+        { model: Service, as: "service", attributes: ["serviceId", "name"] },
+      ],
+      attributes: ["assessmentId", "serviceDate", "customerId"],
+    });
+
+    res.status(200).json(assessments);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching historical assessments",
       error: error.message,
     });
   }
