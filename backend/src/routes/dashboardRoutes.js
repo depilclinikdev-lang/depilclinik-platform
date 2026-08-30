@@ -9,8 +9,11 @@ import {
   getMyUpcomingAppointments,
   getMyPendingAssessments,
   getMyTopTreatments,
+  getSummaryForRange,
+  getTopTreatmentsForRange,
+  getCollaboratorPerformanceForRange,
 } from "../controllers/dashboardController.js";
-import { protect } from "../middlewares/auth.js";
+import { protect, restrictTo } from "../middlewares/auth.js";
 import { cacheMiddleware } from "../middlewares/cache.js";
 
 const router = express.Router();
@@ -38,6 +41,24 @@ router.get(
   protect,
   cacheMiddleware("dashboard", 15),
   getUpcomingAppointments,
+);
+router.get(
+  "/summary-range",
+  protect,
+  restrictTo("Administrador"),
+  getSummaryForRange,
+);
+router.get(
+  "/top-treatments-range",
+  protect,
+  restrictTo("Administrador"),
+  getTopTreatmentsForRange,
+);
+router.get(
+  "/collaborator-performance-range",
+  protect,
+  restrictTo("Administrador"),
+  getCollaboratorPerformanceForRange,
 );
 
 router.get("/my-today-appointments", protect, getMyTodayAppointments);

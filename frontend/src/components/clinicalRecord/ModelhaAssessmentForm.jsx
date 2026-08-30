@@ -99,7 +99,9 @@ const ZONE_LABELS = {
 
 const zoneItems = (prefix) =>
   ZONES.map((z) => ({ key: `${prefix}${z}`, label: ZONE_LABELS[z] }));
-
+const PERIOD_TYPE_OPTIONS = ["Regular", "Irregular", "Cólicos", "Antojos"];
+const PERIOD_TYPE_DISPLAY_TO_VALUE = { Cólicos: "Colicos" };
+const PERIOD_TYPE_VALUE_TO_DISPLAY = { Colicos: "Cólicos" };
 const initialState = {
   serviceDate: "",
   general: {
@@ -127,6 +129,7 @@ const initialState = {
     contraceptiveMethod: "",
     emergencyContraceptive: "",
   },
+  obstetricDetails: [],
   skincareRoutine: {},
   lifestyleHabit: {
     makeupFrequency: "",
@@ -265,6 +268,12 @@ const ModelhaAssessmentForm = ({
         emergencyContraceptive:
           assessment.gynecoRecord?.emergencyContraceptive || "",
       },
+      obstetricDetails:
+        assessment.gynecoRecord?.obstetricDetails?.map((d) => ({
+          conditionStatus: d.conditionStatus,
+          countValue: d.countValue,
+          notes: d.notes || "",
+        })) || [],
       skincareRoutine: assessment.skincareRoutine || {},
       lifestyleHabit: {
         makeupFrequency: assessment.lifestyleHabit?.makeupFrequency || "",
@@ -349,6 +358,32 @@ const ModelhaAssessmentForm = ({
     });
   };
 
+  const addObstetricDetail = () => {
+    setForm((prev) => ({
+      ...prev,
+      obstetricDetails: [
+        ...prev.obstetricDetails,
+        { conditionStatus: "Embarazo", countValue: 1, notes: "" },
+      ],
+    }));
+  };
+
+  const updateObstetricDetail = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      obstetricDetails: prev.obstetricDetails.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+  };
+
+  const removeObstetricDetail = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      obstetricDetails: prev.obstetricDetails.filter((_, i) => i !== index),
+    }));
+  };
+
   const buildPayload = () => {
     const cleanGyneco = form.gynecoRecord
       ? {
@@ -356,11 +391,11 @@ const ModelhaAssessmentForm = ({
           periodStartAge:
             form.gynecoRecord.periodStartAge === ""
               ? null
-              : Number(form.gynecoRecord.periodStartAge),
+              : String(form.gynecoRecord.periodStartAge),
           menopauseStartAge:
             form.gynecoRecord.menopauseStartAge === ""
               ? null
-              : Number(form.gynecoRecord.menopauseStartAge),
+              : String(form.gynecoRecord.menopauseStartAge),
           lastPeriodDate:
             form.gynecoRecord.lastPeriodDate === ""
               ? null
@@ -386,6 +421,13 @@ const ModelhaAssessmentForm = ({
         cleanGyneco && Object.values(cleanGyneco).some((v) => v !== null)
           ? cleanGyneco
           : null,
+      obstetricDetails: form.obstetricDetails
+        .filter((d) => d.countValue !== "" && d.countValue !== null)
+        .map((d) => ({
+          conditionStatus: d.conditionStatus,
+          countValue: Number(d.countValue),
+          notes: d.notes || null,
+        })),
       skincareRoutine: Object.keys(form.skincareRoutine).length
         ? form.skincareRoutine
         : null,
@@ -609,9 +651,18 @@ const ModelhaAssessmentForm = ({
               />
               <SelectField
                 label="¿Cómo son tus periodos?"
-                value={form.gynecoRecord.periodType}
-                onChange={(v) => updateSection("gynecoRecord", "periodType", v)}
-                options={["Regular", "Irregular", "Cólicos", "Antojos"]}
+                value={
+                  PERIOD_TYPE_VALUE_TO_DISPLAY[form.gynecoRecord.periodType] ||
+                  form.gynecoRecord.periodType
+                }
+                onChange={(v) =>
+                  updateSection(
+                    "gynecoRecord",
+                    "periodType",
+                    PERIOD_TYPE_DISPLAY_TO_VALUE[v] || v,
+                  )
+                }
+                options={PERIOD_TYPE_OPTIONS}
               />
               <TextField
                 label="Método anticonceptivo"
@@ -620,6 +671,78 @@ const ModelhaAssessmentForm = ({
                   updateSection("gynecoRecord", "contraceptiveMethod", v)
                 }
               />
+              <TextField
+                label="Método anticonceptivo de emergencia"
+                value={form.gynecoRecord.emergencyContraceptive}
+                onChange={(v) =>
+                  updateSection("gynecoRecord", "emergencyContraceptive", v)
+                }
+              />
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-primary uppercase">
+                  Embarazos / Abortos / Lactancia
+                </p>
+                <button
+                  type="button"
+                  onClick={addObstetricDetail}
+                  className="text-xs font-bold text-secondary hover:text-depil transition-colors cursor-pointer"
+                >
+                  + Agregar
+                </button>
+              </div>
+
+              {form.obstetricDetails.length === 0 ? (
+                <p className="text-xs text-gray-400">
+                  Sin registros. Agrega uno si aplica.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {form.obstetricDetails.map((detail, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-1 sm:grid-cols-[1fr_100px_1fr_auto] gap-2 items-start bg-gray-50/70 rounded-xl p-3 border border-gray-100"
+                    >
+                      <SelectField
+                        label="Tipo"
+                        value={detail.conditionStatus}
+                        onChange={(v) =>
+                          updateObstetricDetail(index, "conditionStatus", v)
+                        }
+                        options={["Embarazo", "Aborto", "Lactancia"]}
+                      />
+                      <TextField
+                        label="Cantidad"
+                        type="number"
+                        value={detail.countValue}
+                        onChange={(v) =>
+                          updateObstetricDetail(
+                            index,
+                            "countValue",
+                            v === "" ? "" : Number(v),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Notas"
+                        value={detail.notes}
+                        onChange={(v) =>
+                          updateObstetricDetail(index, "notes", v)
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeObstetricDetail(index)}
+                        className="self-end text-xs font-bold text-red-500 hover:text-red-700 transition-colors cursor-pointer px-2 py-2.5"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -627,7 +750,125 @@ const ModelhaAssessmentForm = ({
 
       {activeTab === "Hábitos" && (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-bold text-primary uppercase mb-3">
+              Rutina de Día
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <TextField
+                label="Jabón / limpiador"
+                value={form.skincareRoutine.dayCleanser || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "dayCleanser", v)
+                }
+              />
+              <TextField
+                label="Suero / Exfoliante"
+                value={form.skincareRoutine.dayExfoliator || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "dayExfoliator", v)
+                }
+              />
+              <TextField
+                label="Hidratante de día"
+                value={form.skincareRoutine.dayMoisturizer || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "dayMoisturizer", v)
+                }
+              />
+              <TextField
+                label="Tónico"
+                value={form.skincareRoutine.dayToner || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "dayToner", v)
+                }
+              />
+              <TextField
+                label="Protector solar"
+                value={form.skincareRoutine.daySunscreen || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "daySunscreen", v)
+                }
+              />
+              <TextField
+                label="Suero / Serum"
+                value={form.skincareRoutine.daySerum || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "daySerum", v)
+                }
+              />
+            </div>
+            <div className="mt-3">
+              <TextField
+                label="Otro"
+                value={form.skincareRoutine.dayOther || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "dayOther", v)
+                }
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-bold text-primary uppercase mb-3">
+              Rutina de Noche
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <TextField
+                label="Jabón / limpiador"
+                value={form.skincareRoutine.nightCleanser || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightCleanser", v)
+                }
+              />
+              <TextField
+                label="Suero / Exfoliante"
+                value={form.skincareRoutine.nightExfoliator || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightExfoliator", v)
+                }
+              />
+              <TextField
+                label="Hidratante"
+                value={form.skincareRoutine.nightMoisturizer || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightMoisturizer", v)
+                }
+              />
+              <TextField
+                label="Tónico"
+                value={form.skincareRoutine.nightToner || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightToner", v)
+                }
+              />
+              <TextField
+                label="Crema de ojos"
+                value={form.skincareRoutine.nightEyeCream || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightEyeCream", v)
+                }
+              />
+              <TextField
+                label="Desmaquillante"
+                value={form.skincareRoutine.nightMakeupRemover || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightMakeupRemover", v)
+                }
+              />
+            </div>
+            <div className="mt-3">
+              <TextField
+                label="Otro"
+                value={form.skincareRoutine.nightOther || ""}
+                onChange={(v) =>
+                  updateSection("skincareRoutine", "nightOther", v)
+                }
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TextField
               label="Frecuencia de uso de maquillaje"
               value={form.lifestyleHabit.makeupFrequency}
@@ -674,7 +915,7 @@ const ModelhaAssessmentForm = ({
                 <RatingSlider
                   key={item.value}
                   label={item.label}
-                  value={form.dietRatingsMap[item.value] || 5}
+                  value={form.dietRatingsMap[item.value] ?? 5}
                   onChange={(v) =>
                     setForm((prev) => ({
                       ...prev,

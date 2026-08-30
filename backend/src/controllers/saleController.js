@@ -695,6 +695,227 @@ export const getTodayIncome = async (req, res) => {
   }
 };
 
+// Ingresos para un rango de fechas + marca (Admin, filtrable)
+export const getIncomeForRange = async (req, res) => {
+  try {
+    const { startDate, endDate, marca } = req.query;
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Se requiere un rango de fechas" });
+    }
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T23:59:59.999`);
+
+    const saleWhere = {
+      created_at: { [Op.between]: [start, end] },
+      status: { [Op.ne]: "Cancelada" },
+      isHidden: false,
+    };
+    if (marca) saleWhere.marca = marca;
+
+    const salesIncome =
+      (await Sale.sum("amountPaid", {
+        where: saleWhere,
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: [],
+            where: { isHidden: false },
+          },
+        ],
+      })) || 0;
+
+    const hiddenPackages = await CustomerPackage.findAll({
+      where: { isHidden: true },
+      attributes: ["packageId"],
+    });
+    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+
+    let packageIncome;
+    if (marca) {
+      const packagesOfBrand = await CustomerPackage.findAll({
+        where: { marca, isHidden: false },
+        attributes: ["packageId"],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: [],
+            where: { isHidden: false },
+          },
+        ],
+      });
+      const brandPackageIds = packagesOfBrand.map((p) => p.packageId);
+      packageIncome = brandPackageIds.length
+        ? (await PackagePayment.sum("amount", {
+            where: {
+              paid_at: { [Op.between]: [start, end] },
+              packageId: { [Op.in]: brandPackageIds },
+            },
+          })) || 0
+        : 0;
+    } else {
+      const visiblePackages = await CustomerPackage.findAll({
+        where: { isHidden: false },
+        attributes: ["packageId"],
+        include: [
+          {
+            model: Customer,
+            as: "customer",
+            attributes: [],
+            where: { isHidden: false },
+          },
+        ],
+      });
+      const visiblePackageIds = visiblePackages.map((p) => p.packageId);
+      packageIncome = visiblePackageIds.length
+        ? (await PackagePayment.sum("amount", {
+            where: {
+              paid_at: { [Op.between]: [start, end] },
+              packageId: { [Op.in]: visiblePackageIds },
+            },
+          })) || 0
+        : 0;
+    }
+
+    res.status(200).json({ totalIncome: salesIncome + packageIncome });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching income for range",
+      error: error.message,
+    });
+  }
+};
+
+// Ingresos día por día, separados por marca, para graficar en el Dashboard
+export const getDailyIncomeForRange = async (req, res) => {
+  try {
+    const { startDate, endDate, marca } = req.query;
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Se requiere un rango de fechas" });
+    }
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T23:59:59.999`);
+
+    const saleWhere = {
+      created_at: { [Op.between]: [start, end] },
+      status: { [Op.ne]: "Cancelada" },
+      isHidden: false,
+    };
+    if (marca) saleWhere.marca = marca;
+
+    const sales = await Sale.findAll({
+      where: saleWhere,
+      attributes: ["marca", "amountPaid", "created_at"],
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [],
+          where: { isHidden: false },
+        },
+      ],
+    });
+
+    const hiddenPackages = await CustomerPackage.findAll({
+      where: { isHidden: true },
+      attributes: ["packageId"],
+    });
+    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+
+    const packageWhere = { isHidden: false };
+    if (marca) packageWhere.marca = marca;
+    const packages = await CustomerPackage.findAll({
+      where: packageWhere,
+      attributes: ["packageId", "marca"],
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [],
+          where: { isHidden: false },
+        },
+      ],
+    });
+
+    const packageBrandMap = new Map();
+    packages.forEach((p) => {
+      packageBrandMap.set(Number(p.packageId), p.marca);
+      packageBrandMap.set(String(p.packageId), p.marca);
+    });
+
+    const paymentWhere = {
+      paid_at: { [Op.between]: [start, end] },
+      ...(hiddenPackageIds.length > 0
+        ? { packageId: { [Op.notIn]: hiddenPackageIds } }
+        : {}),
+      ...(marca
+        ? { packageId: { [Op.in]: packages.map((p) => p.packageId) } }
+        : {}),
+    };
+    const payments = await PackagePayment.findAll({
+      where: paymentWhere,
+      attributes: ["packageId", "amount", "paid_at"],
+      raw: true,
+    });
+
+    const dayMap = new Map();
+
+    const addToDay = (dateValue, brand, amount) => {
+      const d = new Date(dateValue);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const key = `${y}-${m}-${day}`;
+      if (!dayMap.has(key)) {
+        dayMap.set(key, { date: key, "Modelha DK": 0, Depilclinik: 0 });
+      }
+      const entry = dayMap.get(key);
+      entry[brand] = (entry[brand] || 0) + Number(amount);
+    };
+
+    sales.forEach((s) => addToDay(s.created_at, s.marca, s.amountPaid));
+
+    payments.forEach((p) => {
+      let brand =
+        packageBrandMap.get(p.packageId) ||
+        packageBrandMap.get(Number(p.packageId)) ||
+        packageBrandMap.get(String(p.packageId));
+      if (brand) {
+        addToDay(p.paid_at, brand, p.amount);
+      }
+    });
+
+    const result = [];
+    const [startY, startM, startD] = startDate.split("-").map(Number);
+    const [endY, endM, endD] = endDate.split("-").map(Number);
+    const cursor = new Date(startY, startM - 1, startD);
+    const endMarker = new Date(endY, endM - 1, endD);
+
+    while (cursor <= endMarker) {
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth() + 1).padStart(2, "0");
+      const d = String(cursor.getDate()).padStart(2, "0");
+      const day = `${y}-${m}-${d}`;
+      result.push(
+        dayMap.get(day) || { date: day, "Modelha DK": 0, Depilclinik: 0 },
+      );
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching daily income",
+      error: error.message,
+    });
+  }
+};
+
 // Resumen mensual (Ingresos page): totales, saldos pendientes, ventas concluidas
 export const getMonthlySummary = async (req, res) => {
   try {

@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import sequelize from "../config/db.js";
 import MedicalAssessment from "../models/MedicalAssessment.js";
 import AssessmentProfessionalTreatment from "../models/AssessmentProfessionalTreatment.js";
@@ -18,7 +19,6 @@ import { createPendingPhotosForAssessment } from "./assessmentPhotoController.js
 import { syncPackageSessionOnCompletion } from "./packageController.js";
 import Service from "../models/Service.js";
 import User from "../models/User.js";
-import { Op } from "sequelize";
 
 const fullIncludes = [
   { model: AssessmentProfessionalTreatment, as: "professionalTreatments" },
@@ -134,9 +134,6 @@ export const createAssessment = async (req, res) => {
   try {
     const appointment = req.appointment;
 
-    // Evita duplicar el expediente si la cita ya tiene uno registrado
-    // (por ejemplo, si la administradora atiende una cita que el
-    // colaborador ya había llenado, o si se reintenta el envío).
     const existingForAppointment = await MedicalAssessment.findOne({
       where: { appointmentId: appointment.appointmentId },
       transaction: t,
@@ -149,9 +146,6 @@ export const createAssessment = async (req, res) => {
       });
     }
 
-    // Saneamos TODO el body de entrada: cualquier "" se vuelve null antes
-    // de tocar la base de datos, para no romper columnas ENUM (periodType,
-    // bloodType, etc.) ni otros campos opcionales.
     const sanitizedBody = sanitizeEmptyStrings(req.body);
     const {
       general,
@@ -177,7 +171,7 @@ export const createAssessment = async (req, res) => {
       "Otro",
     ];
 
-    const allowedPeriodTypes = ["Regular", "Irregular", "Cólicos", "Antojos"];
+    const allowedPeriodTypes = ["Regular", "Irregular", "Colicos", "Antojos"];
 
     if (!general || !general.consultationReason || !general.referredMedia) {
       await t.rollback();
@@ -202,9 +196,6 @@ export const createAssessment = async (req, res) => {
         appointmentId: appointment.appointmentId,
         serviceDate: appointment.startTime,
         ...general,
-        // Se registra siempre quién llenó el expediente (colaborador o
-        // administrador), para dejar trazabilidad de quién atendió la
-        // sesión aunque no sea el colaborador originalmente asignado.
         filledByUserId: req.user.id,
         filledAt: new Date(),
         lockedForCollaborator: isCollaborator,
@@ -227,21 +218,6 @@ export const createAssessment = async (req, res) => {
         ...gynecoRecord,
         periodType: gynecoRecord.periodType?.trim() || null,
       };
-
-      if (safeGynecoRecord.periodType) {
-        const periodType = safeGynecoRecord.periodType;
-        const codePoints = Array.from(periodType).map((char) =>
-          char.codePointAt(0),
-        );
-        console.log("GYNECO PERIOD TYPE DEBUG", {
-          periodType,
-          json: JSON.stringify(periodType),
-          length: periodType.length,
-          codePoints,
-          inAllowed: allowedPeriodTypes.includes(periodType),
-          allowedPeriodTypes,
-        });
-      }
 
       if (
         safeGynecoRecord.periodType &&
@@ -277,9 +253,6 @@ export const createAssessment = async (req, res) => {
     }
 
     if (lifestyleHabit) {
-      // day_description es TEXT NOT NULL en la BD; aunque el saneamiento
-      // global convierta "" en null para campos opcionales/ENUM, aquí
-      // debemos preservar "" como valor válido para no violar la restricción.
       lifestyleHabit.dayDescription = lifestyleHabit.dayDescription ?? "";
 
       await LifestyleHabit.create(
@@ -496,15 +469,10 @@ export const createHistoricalAssessment = async (req, res) => {
       "Otro",
     ];
 
-    if (!general || !general.consultationReason || !general.referredMedia) {
-      await t.rollback();
-      return res.status(400).json({
-        message:
-          "El motivo de consulta y el medio de referencia son obligatorios",
-      });
-    }
-
-    if (!allowedReferredMedia.includes(general.referredMedia)) {
+    if (
+      general?.referredMedia &&
+      !allowedReferredMedia.includes(general.referredMedia)
+    ) {
       await t.rollback();
       return res.status(400).json({
         message: `Medio de referencia inválido: ${general.referredMedia}`,
@@ -537,10 +505,22 @@ export const createHistoricalAssessment = async (req, res) => {
     }
 
     if (gynecoRecord) {
+      const allowedPeriodTypes = ["Regular", "Irregular", "Colicos", "Antojos"];
+      if (
+        gynecoRecord?.periodType &&
+        !allowedPeriodTypes.includes(gynecoRecord.periodType)
+      ) {
+        await t.rollback();
+        return res.status(400).json({
+          message: `Tipo de periodo inválido: ${gynecoRecord.periodType}`,
+        });
+      }
+
       const createdGyneco = await GynecoObstetricRecord.create(
         { ...gynecoRecord, assessmentId: assessment.assessmentId },
         { transaction: t },
       );
+
       if (obstetricDetails?.length > 0) {
         await ObstetricHistoryDetail.bulkCreate(
           obstetricDetails.map((item) => ({
@@ -731,6 +711,17 @@ export const updateAssessment = async (req, res) => {
     }
 
     if (gynecoRecord) {
+      const allowedPeriodTypes = ["Regular", "Irregular", "Colicos", "Antojos"];
+      if (
+        gynecoRecord?.periodType &&
+        !allowedPeriodTypes.includes(gynecoRecord.periodType)
+      ) {
+        await t.rollback();
+        return res.status(400).json({
+          message: `Tipo de periodo inválido: ${gynecoRecord.periodType}`,
+        });
+      }
+
       const existingGyneco = await GynecoObstetricRecord.findOne({
         where: { assessmentId: id },
         transaction: t,
@@ -844,6 +835,7 @@ export const updateAssessment = async (req, res) => {
     });
   }
 };
+
 // Expedientes históricos (sin cita) para pintarlos como eventos aparte en Agenda
 export const getHistoricalAssessmentsForCalendar = async (req, res) => {
   try {

@@ -20,6 +20,12 @@ const getMonthRange = (year, month) => {
   return { start, end };
 };
 
+const buildDateRangeFilter = (startDate, endDate) => {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T23:59:59.999`);
+  return { start, end };
+};
+
 // Resumen de tarjetas rápidas del día
 export const getTodaySummary = async (req, res) => {
   try {
@@ -377,6 +383,168 @@ export const getMyPendingAssessments = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while fetching your pending assessments",
+      error: error.message,
+    });
+  }
+};
+// Resumen de tarjetas para un rango de fechas + marca (Admin, filtrable)
+export const getSummaryForRange = async (req, res) => {
+  try {
+    const { startDate, endDate, marca } = req.query;
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Se requiere un rango de fechas" });
+    }
+    const { start, end } = buildDateRangeFilter(startDate, endDate);
+
+    const apptWhere = {
+      startTime: { [Op.between]: [start, end] },
+      isHidden: false,
+    };
+    if (marca) apptWhere.marca = marca;
+
+    const totalAppointments = await Appointment.count({ where: apptWhere });
+
+    const completedAppointments = await Appointment.findAll({
+      where: { ...apptWhere, status: "Completada" },
+      attributes: ["customerId"],
+    });
+    const clientsAttended = new Set(
+      completedAppointments.map((a) => a.customerId),
+    ).size;
+
+    const newClients = await Customer.count({
+      where: { created_at: { [Op.between]: [start, end] } },
+    });
+
+    res.status(200).json({ totalAppointments, clientsAttended, newClients });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching dashboard summary",
+      error: error.message,
+    });
+  }
+};
+
+// Tratamientos más vendidos en un rango de fechas + marca (Admin, filtrable)
+export const getTopTreatmentsForRange = async (req, res) => {
+  try {
+    const { startDate, endDate, marca } = req.query;
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Se requiere un rango de fechas" });
+    }
+    const { start, end } = buildDateRangeFilter(startDate, endDate);
+
+    const where = {
+      status: "Completada",
+      startTime: { [Op.between]: [start, end] },
+      isHidden: false,
+    };
+    if (marca) where.marca = marca;
+
+    const results = await Appointment.findAll({
+      where,
+      attributes: [
+        "serviceId",
+        [fn("COUNT", col("Appointment.appointment_id")), "count"],
+      ],
+      include: [
+        { model: Service, as: "service", attributes: ["name", "brand"] },
+      ],
+      group: ["serviceId", "service.service_id"],
+      order: [[literal("count"), "DESC"]],
+      limit: 5,
+    });
+
+    const formatted = results.map((r) => ({
+      serviceId: r.serviceId,
+      name: r.service?.name || "Servicio eliminado",
+      brand: r.service?.brand,
+      count: Number(r.get("count")),
+    }));
+
+    res.status(200).json(formatted);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching top treatments",
+      error: error.message,
+    });
+  }
+};
+
+// Rendimiento de colaboradores en un rango + marca (Admin, filtrable)
+export const getCollaboratorPerformanceForRange = async (req, res) => {
+  try {
+    const { startDate, endDate, marca } = req.query;
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "Se requiere un rango de fechas" });
+    }
+    const { start, end } = buildDateRangeFilter(startDate, endDate);
+
+    const countsByUser = new Map();
+
+    const mergeResults = (results) => {
+      results.forEach((result) => {
+        const userId = result.filledByUserId;
+        if (!userId) return;
+        const count = Number(result.get("count")) || 0;
+        const existing = countsByUser.get(userId) || {
+          userId,
+          name: result.filledBy?.name || "Sin asignar",
+          count: 0,
+        };
+        existing.count += count;
+        countsByUser.set(userId, existing);
+      });
+    };
+
+    if (!marca || marca === "Modelha DK") {
+      const medicalResults = await MedicalAssessment.findAll({
+        where: {
+          serviceDate: { [Op.between]: [start, end] },
+          filledByUserId: { [Op.ne]: null },
+        },
+        attributes: [
+          "filledByUserId",
+          [fn("COUNT", col("MedicalAssessment.assessment_id")), "count"],
+        ],
+        include: [{ model: User, as: "filledBy", attributes: ["id", "name"] }],
+        group: ["filledByUserId", "filledBy.user_id"],
+      });
+      mergeResults(medicalResults);
+    }
+
+    if (!marca || marca === "Depilclinik") {
+      const laserResults = await LaserMedicalAssessment.findAll({
+        where: {
+          serviceDate: { [Op.between]: [start, end] },
+          filledByUserId: { [Op.ne]: null },
+        },
+        attributes: [
+          "filledByUserId",
+          [
+            fn("COUNT", col("LaserMedicalAssessment.laser_assessment_id")),
+            "count",
+          ],
+        ],
+        include: [{ model: User, as: "filledBy", attributes: ["id", "name"] }],
+        group: ["filledByUserId", "filledBy.user_id"],
+      });
+      mergeResults(laserResults);
+    }
+
+    const formatted = Array.from(countsByUser.values()).sort(
+      (a, b) => b.count - a.count,
+    );
+    res.status(200).json(formatted);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching collaborator performance",
       error: error.message,
     });
   }

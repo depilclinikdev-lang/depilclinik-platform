@@ -140,11 +140,11 @@ CREATE TABLE assessment_professional_treatments (
 CREATE TABLE Gyneco_Obstetric_Records (
     gyneco_id INT AUTO_INCREMENT PRIMARY KEY,
     assessment_id INT NOT NULL,
-    period_start_age INT NULL,
-    menopause_start_age INT NULL,
+    period_start_age VARCHAR(50) NULL,
+    menopause_start_age VARCHAR(50) NULL,
     last_period_date DATE NULL,
-    period_type ENUM('Regular', 'Irregular', 'Cólicos', 'Antojos') NULL,
-     contraceptive_method VARCHAR(100) NULL,
+    period_type ENUM('Regular', 'Irregular', 'Colicos', 'Antojos') NULL,
+    contraceptive_method VARCHAR(100) NULL,
     emergency_contraceptive VARCHAR(100) NULL,
     CONSTRAINT fk_gyneco_assessment FOREIGN KEY (assessment_id) REFERENCES Medical_Assessments(assessment_id) ON DELETE CASCADE
 );

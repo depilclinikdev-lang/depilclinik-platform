@@ -17,12 +17,12 @@ const GynecoObstetricRecord = sequelize.define(
       field: "assessment_id",
     },
     periodStartAge: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(50),
       allowNull: true,
       field: "period_start_age",
     },
     menopauseStartAge: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(50),
       allowNull: true,
       field: "menopause_start_age",
     },
@@ -32,7 +32,7 @@ const GynecoObstetricRecord = sequelize.define(
       field: "last_period_date",
     },
     periodType: {
-      type: DataTypes.ENUM("Regular", "Irregular", "Cólicos", "Antojos"),
+      type: DataTypes.ENUM("Regular", "Irregular", "Colicos", "Antojos"),
       allowNull: true,
       field: "period_type",
     },

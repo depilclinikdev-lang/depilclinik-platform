@@ -25,6 +25,8 @@ const formatCapturedAt = (value) => {
   });
 };
 
+const PERIOD_TYPE_LABELS = { Colicos: "Cólicos" };
+
 const Section = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -322,7 +324,10 @@ const AssessmentSummaryView = ({ assessment, onEdit }) => {
             />
             <Field
               label="Tipo de periodo"
-              value={assessment.gynecoRecord.periodType}
+              value={
+                PERIOD_TYPE_LABELS[assessment.gynecoRecord.periodType] ||
+                assessment.gynecoRecord.periodType
+              }
             />
             <Field
               label="Método anticonceptivo"
@@ -339,35 +344,104 @@ const AssessmentSummaryView = ({ assessment, onEdit }) => {
         />
       </Section>
 
-      {assessment.lifestyleHabit && (
+      {(assessment.lifestyleHabit || assessment.skincareRoutine) && (
         <Section title="Hábitos" defaultOpen={false}>
+          {assessment.skincareRoutine && (
+            <>
+              <span className="text-sm font-bold text-primary">
+                Rutina de Día
+              </span>
+              <Field
+                label="Jabón / limpiador"
+                value={assessment.skincareRoutine.dayCleanser}
+              />
+              <Field
+                label="Hidratante de día"
+                value={assessment.skincareRoutine.dayMoisturizer}
+              />
+              <Field
+                label="Protector solar"
+                value={assessment.skincareRoutine.daySunscreen}
+              />
+              <Field
+                label="Suero / Exfoliante"
+                value={assessment.skincareRoutine.dayExfoliator}
+              />
+              <Field
+                label="Tónico"
+                value={assessment.skincareRoutine.dayToner}
+              />
+              <Field
+                label="Suero / Serum"
+                value={assessment.skincareRoutine.daySerum}
+              />
+              <Field
+                label="Otro (día)"
+                value={assessment.skincareRoutine.dayOther}
+              />
+
+              <span className="text-sm font-bold text-primary mt-2">
+                Rutina de Noche
+              </span>
+              <Field
+                label="Jabón / limpiador"
+                value={assessment.skincareRoutine.nightCleanser}
+              />
+              <Field
+                label="Hidratante"
+                value={assessment.skincareRoutine.nightMoisturizer}
+              />
+              <Field
+                label="Tónico"
+                value={assessment.skincareRoutine.nightToner}
+              />
+              <Field
+                label="Crema de ojos"
+                value={assessment.skincareRoutine.nightEyeCream}
+              />
+              <Field
+                label="Desmaquillante"
+                value={assessment.skincareRoutine.nightMakeupRemover}
+              />
+              <Field
+                label="Suero / Exfoliante"
+                value={assessment.skincareRoutine.nightExfoliator}
+              />
+              <Field
+                label="Otro (noche)"
+                value={assessment.skincareRoutine.nightOther}
+              />
+            </>
+          )}
           <Field
             label="Frecuencia maquillaje"
-            value={assessment.lifestyleHabit.makeupFrequency}
+            value={assessment.lifestyleHabit?.makeupFrequency}
           />
           <Field
             label="Frecuencia lavado sábanas"
-            value={assessment.lifestyleHabit.washingFrequency}
+            value={assessment.lifestyleHabit?.washingFrequency}
           />
           <Field
             label="Actividad física"
-            value={assessment.lifestyleHabit.physicalActivityDetails}
+            value={assessment.lifestyleHabit?.physicalActivityDetails}
           />
           <Field
             label="Hora dormir"
-            value={assessment.lifestyleHabit.sleepTime}
+            value={assessment.lifestyleHabit?.sleepTime}
           />
           <Field
             label="Hora despertar"
-            value={assessment.lifestyleHabit.wakeTime}
+            value={assessment.lifestyleHabit?.wakeTime}
           />
-          <Field
-            label="Nivel de estrés"
-            value={`${assessment.lifestyleHabit.stressLevel} / 10`}
-          />
+          {assessment.lifestyleHabit && (
+            <Field
+              label="Nivel de estrés"
+              value={`${assessment.lifestyleHabit.stressLevel} / 10`}
+            />
+          )}
           <Field
             label="Descripción del día"
-            value={assessment.lifestyleHabit.dayDescription}
+            value={assessment.lifestyleHabit?.dayDescription}
           />
 
           {assessment.dietRatings?.length > 0 && (
