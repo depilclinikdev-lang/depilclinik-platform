@@ -420,9 +420,33 @@ export const getSummaryForRange = async (req, res) => {
       where: { ...apptWhere, status: "Completada" },
       attributes: ["customerId"],
     });
-    const clientsAttended = new Set(
-      completedAppointments.map((a) => a.customerId),
-    ).size;
+
+    const assessmentWhere = {
+      serviceDate: { [Op.between]: [start, end] },
+      isHidden: false,
+    };
+
+    const medicalCustomers =
+      !marca || marca === "Modelha DK"
+        ? await MedicalAssessment.findAll({
+            where: assessmentWhere,
+            attributes: ["customerId"],
+          })
+        : [];
+
+    const laserCustomers =
+      !marca || marca === "Depilclinik"
+        ? await LaserMedicalAssessment.findAll({
+            where: assessmentWhere,
+            attributes: ["customerId"],
+          })
+        : [];
+
+    const clientsAttended = new Set([
+      ...completedAppointments.map((a) => a.customerId),
+      ...medicalCustomers.map((a) => a.customerId),
+      ...laserCustomers.map((a) => a.customerId),
+    ]).size;
 
     const newClients = await Customer.count({
       where: { created_at: { [Op.between]: [start, end] } },
