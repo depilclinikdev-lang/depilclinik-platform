@@ -936,20 +936,23 @@ export const getMonthlySummary = async (req, res) => {
 
     const sales = await Sale.findAll({ where: saleWhere });
 
-    const hiddenPackages = await CustomerPackage.findAll({
-      where: { isHidden: true },
+    const packageBrandWhere = { isHidden: false };
+    if (marca) packageBrandWhere.marca = marca;
+
+    const visiblePackages = await CustomerPackage.findAll({
+      where: packageBrandWhere,
       attributes: ["packageId"],
     });
-    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+    const visiblePackageIds = visiblePackages.map((p) => p.packageId);
 
-    const packageIncome = await PackagePayment.sum("amount", {
-      where: {
-        paid_at: { [Op.between]: [startDate, endDate] },
-        ...(hiddenPackageIds.length > 0
-          ? { packageId: { [Op.notIn]: hiddenPackageIds } }
-          : {}),
-      },
-    });
+    const packageIncome = visiblePackageIds.length
+      ? (await PackagePayment.sum("amount", {
+          where: {
+            paid_at: { [Op.between]: [startDate, endDate] },
+            packageId: { [Op.in]: visiblePackageIds },
+          },
+        })) || 0
+      : 0;
     const packageWhere = {
       paymentStatus: "Con adeudo",
       status: { [Op.ne]: "Cancelado" },
