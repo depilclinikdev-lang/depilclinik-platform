@@ -79,8 +79,10 @@ const getRangeForPeriod = (period) => {
     monday.setDate(monday.getDate() - diffToMonday);
     return { startDate: toISO(monday), endDate: toISO(now) };
   }
+  // "mes" (default) — mes calendario completo, igual que en IngresosPage
   const firstDayMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  return { startDate: toISO(firstDayMonth), endDate: toISO(now) };
+  const lastDayMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { startDate: toISO(firstDayMonth), endDate: toISO(lastDayMonth) };
 };
 const getCurrentMonthRange = () => {
   const now = new Date();
