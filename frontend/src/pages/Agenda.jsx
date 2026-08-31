@@ -179,8 +179,9 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
     const brandColor = BRAND_COLORS[event.marca] || "#5b9fa6";
     return {
       style: {
-        backgroundColor: statusColor,
-        borderLeft: `4px solid ${event.needsCheckout ? "#dc2626" : brandColor}`,
+        backgroundColor: `color-mix(in srgb, ${statusColor} 55%, white)`,
+        color: "#1f2937",
+        borderLeft: `6px solid ${event.needsCheckout ? "#dc2626" : brandColor}`,
         opacity: event.status === "Cancelada" ? 0.45 : 1,
         textDecoration: event.status === "Cancelada" ? "line-through" : "none",
         boxShadow: event.needsCheckout ? "0 0 0 2px #dc2626 inset" : "none",
