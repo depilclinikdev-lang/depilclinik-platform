@@ -189,11 +189,16 @@ const IngresosPage = () => {
     }
   }, [selectedMonth, marca]);
 
+  const isFirstLoad = React.useRef(true);
+
   useEffect(() => {
+    const silent = !isFirstLoad.current;
+    isFirstLoad.current = false;
+
     if (activeTab === "historial") {
-      fetchSales({ silent: true });
+      fetchSales({ silent });
     } else {
-      fetchPendingAccounts({ silent: true });
+      fetchPendingAccounts({ silent });
     }
   }, [activeTab, fetchSales, fetchPendingAccounts]);
 
