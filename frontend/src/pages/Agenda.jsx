@@ -300,7 +300,9 @@ const Agenda = ({ currentUserRole, onAttendAppointment }) => {
               eventPropGetter={eventPropGetter}
               onSelectEvent={handleSelectEvent}
               components={{
-                event: ({ title }) => <span>{title}</span>,
+                event: ({ title }) => (
+                  <span className="rbc-event-title-only">{title}</span>
+                ),
               }}
               messages={{
                 next: "Sig.",
