@@ -126,50 +126,56 @@ const IngresosPage = () => {
     );
   };
 
-  const fetchSales = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/sales", {
-        params: {
-          marca: marca || undefined,
-          dateFrom,
-          dateTo,
-          search: search || undefined,
-          page,
-          limit: 25,
-        },
-      });
-      setSales(response.data.sales);
-      setPackages(response.data.packages || []);
-      setTotalPages(response.data.totalPages);
-      setError("");
-    } catch (err) {
-      setError("No se pudo cargar el historial de ingresos.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [marca, dateFrom, dateTo, search, page]);
+  const fetchSales = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        if (!silent) setLoading(true);
+        const response = await api.get("/sales", {
+          params: {
+            marca: marca || undefined,
+            dateFrom,
+            dateTo,
+            search: search || undefined,
+            page,
+            limit: 25,
+          },
+        });
+        setSales(response.data.sales);
+        setPackages(response.data.packages || []);
+        setTotalPages(response.data.totalPages);
+        setError("");
+      } catch (err) {
+        setError("No se pudo cargar el historial de ingresos.");
+        console.error(err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [marca, dateFrom, dateTo, search, page],
+  );
 
-  const fetchPendingAccounts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/sales/pending-accounts", {
-        params: {
-          marca: marca || undefined,
-          search: search || undefined,
-        },
-      });
-      setPendingSales(response.data.pendingSales || []);
-      setPendingPackages(response.data.pendingPackages || []);
-      setError("");
-    } catch (err) {
-      setError("No se pudieron cargar las cuentas por cobrar.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [marca, search]);
+  const fetchPendingAccounts = useCallback(
+    async ({ silent = false } = {}) => {
+      try {
+        if (!silent) setLoading(true);
+        const response = await api.get("/sales/pending-accounts", {
+          params: {
+            marca: marca || undefined,
+            search: search || undefined,
+          },
+        });
+        setPendingSales(response.data.pendingSales || []);
+        setPendingPackages(response.data.pendingPackages || []);
+        setError("");
+      } catch (err) {
+        setError("No se pudieron cargar las cuentas por cobrar.");
+        console.error(err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [marca, search],
+  );
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -185,9 +191,9 @@ const IngresosPage = () => {
 
   useEffect(() => {
     if (activeTab === "historial") {
-      fetchSales();
+      fetchSales({ silent: true });
     } else {
-      fetchPendingAccounts();
+      fetchPendingAccounts({ silent: true });
     }
   }, [activeTab, fetchSales, fetchPendingAccounts]);
 
@@ -202,9 +208,9 @@ const IngresosPage = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (activeTab === "historial") {
-        fetchSales();
+        fetchSales({ silent: true });
       } else {
-        fetchPendingAccounts();
+        fetchPendingAccounts({ silent: true });
       }
     }, 350);
     return () => clearTimeout(timeoutId);
