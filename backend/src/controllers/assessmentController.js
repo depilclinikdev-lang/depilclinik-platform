@@ -228,6 +228,11 @@ export const createAssessment = async (req, res) => {
           message: `Tipo de periodo inválido: ${safeGynecoRecord.periodType}`,
         });
       }
+      const obstetricError = validateObstetricDetails(obstetricDetails);
+      if (obstetricError) {
+        await t.rollback();
+        return res.status(400).json({ message: obstetricError });
+      }
 
       const createdGyneco = await GynecoObstetricRecord.create(
         { ...safeGynecoRecord, assessmentId: assessment.assessmentId },
@@ -516,6 +521,12 @@ export const createHistoricalAssessment = async (req, res) => {
         });
       }
 
+      const obstetricError = validateObstetricDetails(obstetricDetails);
+      if (obstetricError) {
+        await t.rollback();
+        return res.status(400).json({ message: obstetricError });
+      }
+
       const createdGyneco = await GynecoObstetricRecord.create(
         { ...gynecoRecord, assessmentId: assessment.assessmentId },
         { transaction: t },
@@ -722,6 +733,12 @@ export const updateAssessment = async (req, res) => {
         });
       }
 
+      const obstetricError = validateObstetricDetails(obstetricDetails);
+      if (obstetricError) {
+        await t.rollback();
+        return res.status(400).json({ message: obstetricError });
+      }
+
       const existingGyneco = await GynecoObstetricRecord.findOne({
         where: { assessmentId: id },
         transaction: t,
@@ -834,6 +851,23 @@ export const updateAssessment = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+const ALLOWED_OBSTETRIC_CONDITIONS = ["Embarazo", "Aborto", "Lactancia"];
+
+const validateObstetricDetails = (obstetricDetails) => {
+  if (!obstetricDetails || obstetricDetails.length === 0) return null;
+
+  for (let i = 0; i < obstetricDetails.length; i++) {
+    const item = obstetricDetails[i];
+    if (!ALLOWED_OBSTETRIC_CONDITIONS.includes(item.conditionStatus)) {
+      return `En "Embarazos / Abortos / Lactancia", el tipo de la fila ${i + 1} no es válido. Selecciona Embarazo, Aborto o Lactancia.`;
+    }
+    if (!item.countValue || Number(item.countValue) < 1) {
+      return `En "Embarazos / Abortos / Lactancia", la cantidad de la fila ${i + 1} debe ser un número mayor a 0.`;
+    }
+  }
+  return null;
 };
 
 // Expedientes históricos (sin cita) para pintarlos como eventos aparte en Agenda

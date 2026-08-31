@@ -301,6 +301,7 @@ const ModelhaAssessmentForm = ({
   };
 
   const [activeTab, setActiveTab] = useState("General");
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState(() => buildStateFromAssessment(initialData));
 
   // --- Cálculo automático de IMC ---
@@ -448,7 +449,51 @@ const ModelhaAssessmentForm = ({
     };
   };
 
+  const validateForm = () => {
+    if (!form.general.consultationReason?.trim()) {
+      return {
+        tab: "General",
+        message: "El motivo de consulta es obligatorio.",
+      };
+    }
+    if (!form.general.referredMedia) {
+      return {
+        tab: "General",
+        message: "Selecciona dónde nos conoció el cliente.",
+      };
+    }
+
+    for (let i = 0; i < form.obstetricDetails.length; i++) {
+      const item = form.obstetricDetails[i];
+      if (!item.conditionStatus) {
+        return {
+          tab: "General",
+          message: `En "Embarazos / Abortos / Lactancia", selecciona el tipo en la fila ${i + 1} (no puede quedar en "Selecciona...").`,
+        };
+      }
+      if (
+        item.countValue === "" ||
+        item.countValue === null ||
+        Number(item.countValue) < 1
+      ) {
+        return {
+          tab: "General",
+          message: `En "Embarazos / Abortos / Lactancia", la cantidad de la fila ${i + 1} debe ser un número mayor a 0.`,
+        };
+      }
+    }
+
+    return null;
+  };
+
   const handleSaveClick = () => {
+    const error = validateForm();
+    if (error) {
+      setFormError(error.message);
+      setActiveTab(error.tab);
+      return;
+    }
+    setFormError("");
     onSubmit(buildPayload());
   };
 
@@ -485,7 +530,11 @@ const ModelhaAssessmentForm = ({
           ))}
         </div>
       </div>
-
+      {formError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-semibold rounded-xl px-4 py-3">
+          {formError}
+        </div>
+      )}
       {activeTab === "General" && (
         <div className="flex flex-col gap-4">
           {isEditMode && (

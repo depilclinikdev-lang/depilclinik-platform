@@ -234,6 +234,16 @@ export const getUpcomingAppointments = async (req, res) => {
         { model: Customer, as: "customer", attributes: ["name", "phone"] },
         { model: Service, as: "service", attributes: ["name"] },
         { model: User, as: "collaborator", attributes: ["name"] },
+        {
+          model: MedicalAssessment,
+          as: "medicalAssessment",
+          attributes: ["assessmentId"],
+        },
+        {
+          model: LaserMedicalAssessment,
+          as: "laserAssessment",
+          attributes: ["laserAssessmentId"],
+        },
       ],
       order: [["startTime", "ASC"]],
       limit: 12,
@@ -508,6 +518,7 @@ export const getCollaboratorPerformanceForRange = async (req, res) => {
         where: {
           serviceDate: { [Op.between]: [start, end] },
           filledByUserId: { [Op.ne]: null },
+          isHidden: false,
         },
         attributes: [
           "filledByUserId",
@@ -524,6 +535,7 @@ export const getCollaboratorPerformanceForRange = async (req, res) => {
         where: {
           serviceDate: { [Op.between]: [start, end] },
           filledByUserId: { [Op.ne]: null },
+          isHidden: false,
         },
         attributes: [
           "filledByUserId",

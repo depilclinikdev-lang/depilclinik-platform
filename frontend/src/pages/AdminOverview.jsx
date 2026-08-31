@@ -7,6 +7,9 @@ import {
   LuCalendarCheck,
   LuTrophy,
   LuClock,
+  LuWallet,
+  LuChevronRight,
+  LuSparkles,
 } from "react-icons/lu";
 
 const BRAND_COLORS = { "Modelha DK": "#197e88", Depilclinik: "#c026d3" };
@@ -88,7 +91,19 @@ const getCurrentMonthRange = () => {
 
 const formatAxisLabel = (value) => `$${(value / 1000).toFixed(0)}k`;
 
-const AdminOverview = ({ userRole }) => {
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
+};
+
+const AdminOverview = ({
+  userRole,
+  userName,
+  onNavigate,
+  onAttendAppointment,
+}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -104,6 +119,10 @@ const AdminOverview = ({ userRole }) => {
   const [topTreatments, setTopTreatments] = useState([]);
   const [performance, setPerformance] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
+  const [pendingAccountsSummary, setPendingAccountsSummary] = useState({
+    totalPending: 0,
+    count: 0,
+  });
   const [dailyIncome, setDailyIncome] = useState([]);
 
   const formatShortName = (fullName) => {
@@ -149,6 +168,7 @@ const AdminOverview = ({ userRole }) => {
           treatmentsRes,
           performanceRes,
           upcomingRes,
+          pendingAccountsRes,
         ] = await Promise.all([
           api.get("/dashboard/summary-range", { params }),
           api.get("/sales/income-range", { params }),
@@ -156,6 +176,9 @@ const AdminOverview = ({ userRole }) => {
           api.get("/dashboard/top-treatments-range", { params }),
           api.get("/dashboard/collaborator-performance-range", { params }),
           api.get("/dashboard/upcoming-appointments"),
+          api.get("/sales/pending-accounts", {
+            params: marca ? { marca } : {},
+          }),
         ]);
 
         setSummary(summaryRes.data);
@@ -164,6 +187,24 @@ const AdminOverview = ({ userRole }) => {
         setTopTreatments(treatmentsRes.data);
         setPerformance(performanceRes.data);
         setUpcoming(upcomingRes.data);
+
+        const pendingSales = pendingAccountsRes.data.pendingSales || [];
+        const pendingPackages = pendingAccountsRes.data.pendingPackages || [];
+        const totalPending =
+          pendingSales.reduce(
+            (sum, s) =>
+              sum + (parseFloat(s.totalAmount) - parseFloat(s.amountPaid)),
+            0,
+          ) +
+          pendingPackages.reduce(
+            (sum, p) =>
+              sum + (parseFloat(p.totalPrice) - parseFloat(p.amountPaid)),
+            0,
+          );
+        setPendingAccountsSummary({
+          totalPending,
+          count: pendingSales.length + pendingPackages.length,
+        });
 
         setError("");
       } catch (err) {
@@ -209,6 +250,21 @@ const AdminOverview = ({ userRole }) => {
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
+      <div className="bg-linear-to-r from-secondary to-depil p-6 rounded-2xl shadow-sm flex items-center gap-4 text-white">
+        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+          <LuSparkles size={26} />
+        </div>
+        <div>
+          <p className="text-xl font-black flex items-center gap-2">
+            {getGreeting()}, {userName?.split(" ")[0] || "administrador"}
+            <span className="text-3xl">👋</span>
+          </p>
+          <p className="text-sm text-white/80 mt-0.5">
+            Aquí puedes revisar cómo va todo.
+          </p>
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div className="flex flex-wrap gap-2">
           {PERIODS.map((p) => (
@@ -252,13 +308,35 @@ const AdminOverview = ({ userRole }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
         <StatCard
           icon={LuBanknote}
           label="Ingresos"
           value={formatCurrency(income)}
           color="#16a34a"
         />
+
+        <button
+          onClick={() => onNavigate && onNavigate("ingresos")}
+          className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex items-center gap-4 hover:border-amber-300 hover:shadow-md transition-all cursor-pointer text-left group"
+        >
+          <div className="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <LuWallet size={22} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-accent uppercase">
+              Cuentas x Cobrar
+            </p>
+            <p className="text-xl font-black text-primary truncate">
+              {formatCurrency(pendingAccountsSummary.totalPending)}
+            </p>
+            <p className="text-[11px] text-accent truncate">
+              {pendingAccountsSummary.count} pendiente
+              {pendingAccountsSummary.count !== 1 ? "s" : ""}
+            </p>
+          </div>
+        </button>
+
         <StatCard
           icon={LuUsers}
           label="Clientes atendidos"
@@ -449,25 +527,55 @@ const AdminOverview = ({ userRole }) => {
               Aún no hay servicios completados en este periodo.
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              {performance.map((p) => (
-                <div key={p.userId} className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-primary min-w-32 shrink-0">
-                    {formatShortName(p.name)}
-                  </span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+            <div className="flex flex-col divide-y divide-gray-50">
+              {performance.map((p, index) => {
+                const medalStyles = [
+                  { bg: "#fef3c7", text: "#b45309", ring: "#f59e0b" }, // oro
+                  { bg: "#f1f5f9", text: "#475569", ring: "#94a3b8" }, // plata
+                  { bg: "#fed7aa", text: "#9a3412", ring: "#ea580c" }, // bronce
+                ];
+                const medal = medalStyles[index];
+                const initials = p.name
+                  ?.split(" ")
+                  .map((w) => w[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
+
+                return (
+                  <div
+                    key={p.userId}
+                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <span className="w-5 text-xs font-bold text-gray-400 shrink-0 text-center">
+                      {index + 1}
+                    </span>
                     <div
-                      className="h-full bg-linear-to-r from-secondary to-depil rounded-full transition-all"
-                      style={{
-                        width: `${(p.count / maxPerformanceCount) * 100}%`,
-                      }}
-                    />
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                      style={
+                        medal
+                          ? {
+                              backgroundColor: medal.bg,
+                              color: medal.text,
+                              boxShadow: `0 0 0 2px ${medal.ring}`,
+                            }
+                          : { backgroundColor: "#f3f4f6", color: "#6b7280" }
+                      }
+                    >
+                      {initials}
+                    </div>
+                    <span className="flex-1 min-w-0 text-sm font-semibold text-primary truncate">
+                      {formatShortName(p.name)}
+                    </span>
+                    <span className="text-sm font-black text-primary shrink-0">
+                      {p.count}
+                      <span className="text-[10px] font-semibold text-accent ml-1">
+                        servicios
+                      </span>
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-primary w-6 text-right">
-                    {p.count}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -491,7 +599,15 @@ const AdminOverview = ({ userRole }) => {
                     <p className="text-xs font-semibold text-primary truncate">
                       {t.name}
                     </p>
-                    <p className="text-[11px] text-accent">{t.brand}</p>
+                    <span
+                      className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{
+                        backgroundColor: `${BRAND_COLORS[t.brand]}15`,
+                        color: BRAND_COLORS[t.brand],
+                      }}
+                    >
+                      {t.brand}
+                    </span>
                   </div>
                   <span className="text-xs font-bold text-primary shrink-0">
                     {t.count}
@@ -524,7 +640,7 @@ const AdminOverview = ({ userRole }) => {
                 </span>
                 <div className="overflow-x-auto">
                   <div className="min-w-150">
-                    <div className="grid grid-cols-[1.8fr_1.8fr_1.8fr_1.2fr] gap-2 border-b border-gray-100 pb-2">
+                    <div className="grid grid-cols-[1.6fr_1.6fr_1.6fr_1fr_auto] gap-2 border-b border-gray-100 pb-2">
                       <span className="p-3 text-xs font-bold text-accent">
                         Cliente
                       </span>
@@ -537,27 +653,48 @@ const AdminOverview = ({ userRole }) => {
                       <span className="p-3 text-xs font-bold text-accent">
                         Horario
                       </span>
+                      <span className="p-3 text-xs font-bold text-accent">
+                        Expediente
+                      </span>
                     </div>
                     <div className="divide-y divide-gray-100">
-                      {groupedUpcoming[bucket].map((appt) => (
-                        <div
-                          key={appt.appointmentId}
-                          className="grid grid-cols-[1.8fr_1.8fr_1.8fr_1.2fr] gap-2 hover:bg-gray-50/50 transition-colors"
-                        >
-                          <span className="p-3 text-sm font-semibold text-primary">
-                            {formatShortName(appt.customer?.name)}
-                          </span>
-                          <span className="p-3 text-sm text-gray-600">
-                            {appt.service?.name || "—"}
-                          </span>
-                          <span className="p-3 text-sm text-gray-600">
-                            {formatShortName(appt.collaborator?.name)}
-                          </span>
-                          <span className="p-3 text-sm text-gray-600">
-                            {formatTime(appt.startTime)}
-                          </span>
-                        </div>
-                      ))}
+                      {groupedUpcoming[bucket].map((appt) => {
+                        const hasAssessment =
+                          appt.marca === "Modelha DK"
+                            ? Boolean(appt.medicalAssessment)
+                            : Boolean(appt.laserAssessment);
+                        return (
+                          <div
+                            key={appt.appointmentId}
+                            className="grid grid-cols-[1.6fr_1.6fr_1.6fr_1fr_auto] gap-2 items-center hover:bg-gray-50/50 transition-colors"
+                          >
+                            <span className="p-3 text-sm font-semibold text-primary">
+                              {formatShortName(appt.customer?.name)}
+                            </span>
+                            <span className="p-3 text-sm text-gray-600">
+                              {appt.service?.name || "—"}
+                            </span>
+                            <span className="p-3 text-sm text-gray-600">
+                              {formatShortName(appt.collaborator?.name)}
+                            </span>
+                            <span className="p-3 text-sm text-gray-600">
+                              {formatTime(appt.startTime)}
+                            </span>
+                            <span className="p-3">
+                              {!hasAssessment && onAttendAppointment && (
+                                <button
+                                  onClick={() =>
+                                    onAttendAppointment(appt.appointmentId)
+                                  }
+                                  className="text-[11px] font-bold text-white bg-secondary hover:bg-[#14676f] transition-colors px-3 py-1.5 rounded-full cursor-pointer whitespace-nowrap"
+                                >
+                                  Llenar
+                                </button>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

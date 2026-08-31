@@ -81,7 +81,14 @@ const DashboardPage = ({ user, onLogout, onAttendAppointment }) => {
             />
           );
         }
-        return <AdminOverview userRole={user?.role} />;
+        return (
+          <AdminOverview
+            userRole={user?.role}
+            userName={user?.name}
+            onNavigate={setActiveView}
+            onAttendAppointment={onAttendAppointment}
+          />
+        );
 
       case "empleados":
         if (user?.role !== "Administrador") {
