@@ -219,8 +219,13 @@ const AdminOverview = ({
     [period, marca],
   );
 
+  const isFirstLoad = React.useRef(true);
+
   useEffect(() => {
-    fetchAll();
+    const silent = !isFirstLoad.current;
+    isFirstLoad.current = false;
+    fetchAll({ silent });
+
     const interval = setInterval(() => fetchAll({ silent: true }), 15000);
     return () => clearInterval(interval);
   }, [fetchAll]);
