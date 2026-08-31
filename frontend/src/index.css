@@ -201,3 +201,37 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Vista Mes en pantallas pequeñas (celular): más alto por fila y texto
+   más chico para que el indicador "+X more" no se desborde ni se
+   empalme con la celda de al lado */
+@media (max-width: 640px) {
+  .month-themed-calendar .rbc-month-view .rbc-month-row {
+    min-height: 90px;
+  }
+
+  .month-themed-calendar .rbc-month-view .rbc-event {
+    font-size: 0.62rem;
+    padding: 1px 4px;
+    min-height: 16px;
+    margin-bottom: 1px;
+  }
+
+  .month-themed-calendar .rbc-show-more {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 3px;
+    background-color: white;
+    border-radius: 4px;
+    display: block;
+    white-space: nowrap;
+  }
+
+  .month-themed-calendar .rbc-row-segment {
+    padding: 0 1px;
+  }
+
+  .month-themed-calendar .rbc-date-cell {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+  }
+}
