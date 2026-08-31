@@ -254,7 +254,7 @@ export const getSalesHistory = async (req, res) => {
       limit = 25,
     } = req.query;
 
-    const saleWhere = { isHidden: false };
+    const saleWhere = { isHidden: false, "$customer.is_hidden$": false };
     if (marca) saleWhere.marca = marca;
     if (status && ["Liquidada", "Con adeudo", "Cancelada"].includes(status)) {
       saleWhere.status = status;
@@ -272,7 +272,11 @@ export const getSalesHistory = async (req, res) => {
       ];
     }
 
-    const packageWhere = { status: { [Op.ne]: "Cancelado" }, isHidden: false };
+    const packageWhere = {
+      status: { [Op.ne]: "Cancelado" },
+      isHidden: false,
+      "$customer.is_hidden$": false,
+    };
     if (marca) packageWhere.marca = marca;
     if (status) {
       if (["Activo", "Completado", "Cancelado"].includes(status)) {
@@ -348,7 +352,7 @@ const buildSalesPdfBuffer = async ({
   search,
   generatedByName,
 }) => {
-  const where = { isHidden: false };
+  const where = { isHidden: false, "$customer.is_hidden$": false };
   if (marca) where.marca = marca;
 
   if (dateFrom || dateTo) {
@@ -375,6 +379,7 @@ const buildSalesPdfBuffer = async ({
     where: {
       status: { [Op.ne]: "Cancelado" },
       isHidden: false,
+      "$customer.is_hidden$": false,
       created_at: where.created_at,
       ...(marca ? { marca } : {}),
     },
@@ -667,22 +672,31 @@ export const getTodayIncome = async (req, res) => {
         status: { [Op.ne]: "Cancelada" },
         isHidden: false,
       },
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [],
+          where: { isHidden: false },
+        },
+      ],
     });
 
-    const hiddenPackages = await CustomerPackage.findAll({
-      where: { isHidden: true },
+    const visiblePackages = await CustomerPackage.findAll({
+      where: { isHidden: false, "$customer.is_hidden$": false },
+      include: [{ model: Customer, as: "customer", attributes: [] }],
       attributes: ["packageId"],
     });
-    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+    const visiblePackageIds = visiblePackages.map((p) => p.packageId);
 
-    const packageIncome = await PackagePayment.sum("amount", {
-      where: {
-        paid_at: { [Op.between]: [startOfDay, endOfDay] },
-        ...(hiddenPackageIds.length > 0
-          ? { packageId: { [Op.notIn]: hiddenPackageIds } }
-          : {}),
-      },
-    });
+    const packageIncome = visiblePackageIds.length
+      ? await PackagePayment.sum("amount", {
+          where: {
+            paid_at: { [Op.between]: [startOfDay, endOfDay] },
+            packageId: { [Op.in]: visiblePackageIds },
+          },
+        })
+      : 0;
 
     res.status(200).json({
       totalIncome: (salesIncome || 0) + (packageIncome || 0),
@@ -727,58 +741,31 @@ export const getIncomeForRange = async (req, res) => {
         ],
       })) || 0;
 
-    const hiddenPackages = await CustomerPackage.findAll({
-      where: { isHidden: true },
-      attributes: ["packageId"],
-    });
-    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
+    const packageBrandWhere = { isHidden: false };
+    if (marca) packageBrandWhere.marca = marca;
 
-    let packageIncome;
-    if (marca) {
-      const packagesOfBrand = await CustomerPackage.findAll({
-        where: { marca, isHidden: false },
-        attributes: ["packageId"],
-        include: [
-          {
-            model: Customer,
-            as: "customer",
-            attributes: [],
-            where: { isHidden: false },
+    const visiblePackages = await CustomerPackage.findAll({
+      where: packageBrandWhere,
+      attributes: ["packageId"],
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [],
+          where: { isHidden: false },
+        },
+      ],
+    });
+    const visiblePackageIds = visiblePackages.map((p) => p.packageId);
+
+    const packageIncome = visiblePackageIds.length
+      ? (await PackagePayment.sum("amount", {
+          where: {
+            paid_at: { [Op.between]: [start, end] },
+            packageId: { [Op.in]: visiblePackageIds },
           },
-        ],
-      });
-      const brandPackageIds = packagesOfBrand.map((p) => p.packageId);
-      packageIncome = brandPackageIds.length
-        ? (await PackagePayment.sum("amount", {
-            where: {
-              paid_at: { [Op.between]: [start, end] },
-              packageId: { [Op.in]: brandPackageIds },
-            },
-          })) || 0
-        : 0;
-    } else {
-      const visiblePackages = await CustomerPackage.findAll({
-        where: { isHidden: false },
-        attributes: ["packageId"],
-        include: [
-          {
-            model: Customer,
-            as: "customer",
-            attributes: [],
-            where: { isHidden: false },
-          },
-        ],
-      });
-      const visiblePackageIds = visiblePackages.map((p) => p.packageId);
-      packageIncome = visiblePackageIds.length
-        ? (await PackagePayment.sum("amount", {
-            where: {
-              paid_at: { [Op.between]: [start, end] },
-              packageId: { [Op.in]: visiblePackageIds },
-            },
-          })) || 0
-        : 0;
-    }
+        })) || 0
+      : 0;
 
     res.status(200).json({ totalIncome: salesIncome + packageIncome });
   } catch (error) {
@@ -821,12 +808,6 @@ export const getDailyIncomeForRange = async (req, res) => {
       ],
     });
 
-    const hiddenPackages = await CustomerPackage.findAll({
-      where: { isHidden: true },
-      attributes: ["packageId"],
-    });
-    const hiddenPackageIds = hiddenPackages.map((p) => p.packageId);
-
     const packageWhere = { isHidden: false };
     if (marca) packageWhere.marca = marca;
     const packages = await CustomerPackage.findAll({
@@ -841,28 +822,22 @@ export const getDailyIncomeForRange = async (req, res) => {
         },
       ],
     });
+    const packageBrandMap = new Map(
+      packages.map((p) => [p.packageId, p.marca]),
+    );
+    const visiblePackageIds = packages.map((p) => p.packageId);
 
-    const packageBrandMap = new Map();
-    packages.forEach((p) => {
-      packageBrandMap.set(Number(p.packageId), p.marca);
-      packageBrandMap.set(String(p.packageId), p.marca);
-    });
+    const payments = visiblePackageIds.length
+      ? await PackagePayment.findAll({
+          where: {
+            paid_at: { [Op.between]: [start, end] },
+            packageId: { [Op.in]: visiblePackageIds },
+          },
+          attributes: ["packageId", "amount", "paid_at"],
+        })
+      : [];
 
-    const paymentWhere = {
-      paid_at: { [Op.between]: [start, end] },
-      ...(hiddenPackageIds.length > 0
-        ? { packageId: { [Op.notIn]: hiddenPackageIds } }
-        : {}),
-      ...(marca
-        ? { packageId: { [Op.in]: packages.map((p) => p.packageId) } }
-        : {}),
-    };
-    const payments = await PackagePayment.findAll({
-      where: paymentWhere,
-      attributes: ["packageId", "amount", "paid_at"],
-      raw: true,
-    });
-
+    // Agrupamos por día (YYYY-MM-DD) y marca
     const dayMap = new Map();
 
     const addToDay = (dateValue, brand, amount) => {
@@ -879,17 +854,14 @@ export const getDailyIncomeForRange = async (req, res) => {
     };
 
     sales.forEach((s) => addToDay(s.created_at, s.marca, s.amountPaid));
-
     payments.forEach((p) => {
-      let brand =
-        packageBrandMap.get(p.packageId) ||
-        packageBrandMap.get(Number(p.packageId)) ||
-        packageBrandMap.get(String(p.packageId));
-      if (brand) {
-        addToDay(p.paid_at, brand, p.amount);
-      }
+      const brand = packageBrandMap.get(p.packageId);
+      if (brand) addToDay(p.paid_at, brand, p.amount);
     });
 
+    // Rellenamos los días sin movimiento para que la gráfica no tenga huecos.
+    // Se recorre por componentes de fecha (año/mes/día) en vez de por
+    // milisegundos, para evitar problemas de zona horaria o fechas límite.
     const result = [];
     const [startY, startM, startD] = startDate.split("-").map(Number);
     const [endY, endM, endD] = endDate.split("-").map(Number);
@@ -934,7 +906,17 @@ export const getMonthlySummary = async (req, res) => {
     };
     if (marca) saleWhere.marca = marca;
 
-    const sales = await Sale.findAll({ where: saleWhere });
+    const sales = await Sale.findAll({
+      where: saleWhere,
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [],
+          where: { isHidden: false },
+        },
+      ],
+    });
 
     const packageBrandWhere = { isHidden: false };
     if (marca) packageBrandWhere.marca = marca;
@@ -942,6 +924,14 @@ export const getMonthlySummary = async (req, res) => {
     const visiblePackages = await CustomerPackage.findAll({
       where: packageBrandWhere,
       attributes: ["packageId"],
+      include: [
+        {
+          model: Customer,
+          as: "customer",
+          attributes: [],
+          where: { isHidden: false },
+        },
+      ],
     });
     const visiblePackageIds = visiblePackages.map((p) => p.packageId);
 
@@ -953,26 +943,31 @@ export const getMonthlySummary = async (req, res) => {
           },
         })) || 0
       : 0;
+
     const packageWhere = {
       paymentStatus: "Con adeudo",
       status: { [Op.ne]: "Cancelado" },
       isHidden: false,
+      "$customer.is_hidden$": false,
     };
     if (marca) packageWhere.marca = marca;
 
     const packagesWithDebt = await CustomerPackage.findAll({
       where: packageWhere,
+      include: [{ model: Customer, as: "customer", attributes: [] }],
     });
 
     const packageTotalWhere = {
       status: { [Op.ne]: "Cancelado" },
       isHidden: false,
+      "$customer.is_hidden$": false,
       created_at: { [Op.between]: [startDate, endDate] },
     };
     if (marca) packageTotalWhere.marca = marca;
 
     const totalPackageCount = await CustomerPackage.count({
       where: packageTotalWhere,
+      include: [{ model: Customer, as: "customer", attributes: [] }],
     });
 
     const completedPackageCount = await CustomerPackage.count({
@@ -980,14 +975,16 @@ export const getMonthlySummary = async (req, res) => {
         paymentStatus: "Pagado",
         status: { [Op.ne]: "Cancelado" },
         isHidden: false,
+        "$customer.is_hidden$": false,
         created_at: { [Op.between]: [startDate, endDate] },
         ...(marca ? { marca } : {}),
       },
+      include: [{ model: Customer, as: "customer", attributes: [] }],
     });
 
     const totalIncome =
       sales.reduce((sum, s) => sum + parseFloat(s.amountPaid), 0) +
-      (packageIncome || 0);
+      packageIncome;
     const pendingBalance =
       sales.reduce(
         (sum, s) =>
@@ -1020,7 +1017,11 @@ export const getMonthlySummary = async (req, res) => {
 export const getPendingAccounts = async (req, res) => {
   try {
     const { search, marca } = req.query;
-    const saleWhere = { status: "Con adeudo", isHidden: false };
+    const saleWhere = {
+      status: "Con adeudo",
+      isHidden: false,
+      "$customer.is_hidden$": false,
+    };
 
     if (marca) saleWhere.marca = marca;
     if (search) {
@@ -1042,6 +1043,7 @@ export const getPendingAccounts = async (req, res) => {
       paymentStatus: "Con adeudo",
       status: { [Op.ne]: "Cancelado" },
       isHidden: false,
+      "$customer.is_hidden$": false,
     };
     if (marca) packageWhere.marca = marca;
     if (search) {
