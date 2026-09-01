@@ -126,6 +126,7 @@ export const login = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const usuarios = await User.findAll({
+      where: { isHidden: false },
       attributes: [
         ["user_id", "user_id"],
         "name",

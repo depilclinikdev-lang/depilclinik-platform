@@ -21,6 +21,7 @@ CREATE TABLE Users (
     medical_insurance_number VARCHAR(50) UNIQUE NULL,
     rol ENUM('Administrador', 'Colaborador') NOT NULL DEFAULT 'Colaborador',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     unique key uq_users_public_id (public_id)

@@ -85,6 +85,12 @@ const User = sequelize.define(
       defaultValue: true,
       field: "is_active",
     },
+    isHidden: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "is_hidden",
+    },
     mustChangePassword: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
