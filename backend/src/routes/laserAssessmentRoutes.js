@@ -1,51 +1,42 @@
 import express from "express";
 import {
-  getLatestLaserAssessmentByCustomer,
-  getLaserAssessmentHistoryByCustomer,
+  getLaserAssessmentByCustomerAndService,
+  getCustomerLaserServiceSummaries,
   getLaserAssessmentByAppointment,
-  createLaserAssessment,
-  getAllLaserAssessments,
-  getLaserAssessmentById,
-  createHistoricalLaserAssessment,
-  updateLaserAssessment,
+  createOrUpdateLaserAssessment,
+  getLaserPackageComparison,
+  updateLaserAssessmentManually,
 } from "../controllers/laserAssessmentController.js";
 import {
   protect,
   restrictTo,
   canAttendAppointment,
 } from "../middlewares/auth.js";
-import { getHistoricalLaserAssessmentsForCalendar } from "../controllers/laserAssessmentController.js";
 
 const router = express.Router();
 
-router.post(
-  "/historical",
+// Lista los servicios que un cliente ha tenido con expediente (Depilclinik)
+router.get(
+  "/customer/:customerId/services",
   protect,
   restrictTo("Administrador"),
-  createHistoricalLaserAssessment,
+  getCustomerLaserServiceSummaries,
 );
 
-router.put("/:id", protect, restrictTo("Administrador"), updateLaserAssessment);
-
+// Expediente vivo de un cliente para un servicio específico
 router.get(
-  "/customer/:customerId/latest",
+  "/customer/:customerId/service/:serviceId",
   protect,
   restrictTo("Administrador"),
-  getLatestLaserAssessmentByCustomer,
+  getLaserAssessmentByCustomerAndService,
 );
 
+// Comparación línea base / final de un paquete completado
 router.get(
-  "/customer/:customerId/history",
+  "/package-comparison/:packageId",
   protect,
   restrictTo("Administrador"),
-  getLaserAssessmentHistoryByCustomer,
-);
-
-router.get(
-  "/all",
-  protect,
-  restrictTo("Administrador"),
-  getAllLaserAssessments,
+  getLaserPackageComparison,
 );
 
 router.get(
@@ -59,20 +50,15 @@ router.post(
   "/appointment/:appointmentId",
   protect,
   canAttendAppointment,
-  createLaserAssessment,
+  createOrUpdateLaserAssessment,
 );
 
-router.get(
+// Edición manual del expediente vivo, sin necesidad de cita
+router.put(
   "/:id",
   protect,
   restrictTo("Administrador"),
-  getLaserAssessmentById,
-);
-router.get(
-  "/historical/calendar",
-  protect,
-  restrictTo("Administrador"),
-  getHistoricalLaserAssessmentsForCalendar,
+  updateLaserAssessmentManually,
 );
 
 export default router;

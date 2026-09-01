@@ -3,6 +3,8 @@ import sequelize from "../config/db.js";
 import LaserAreaOfInterest from "./LaserAreaOfInterest.js";
 import LaserClinicalCondition from "./LaserClinicalCondition.js";
 import Service from "./Service.js";
+import AssessmentPackageSnapshot from "./AssessmentPackageSnapshot.js";
+import AssessmentSessionNote from "./AssessmentSessionNote.js";
 
 const LaserMedicalAssessment = sequelize.define(
   "LaserMedicalAssessment",
@@ -27,6 +29,11 @@ const LaserMedicalAssessment = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: "service_id",
+    },
+    activePackageId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "active_package_id",
     },
     serviceDate: {
       type: DataTypes.DATEONLY,
@@ -159,9 +166,30 @@ LaserClinicalCondition.belongsTo(LaserMedicalAssessment, {
   foreignKey: "laserAssessmentId",
   as: "laserAssessment",
 });
+
 LaserMedicalAssessment.belongsTo(Service, {
   foreignKey: "serviceId",
   as: "service",
+});
+
+LaserMedicalAssessment.hasMany(AssessmentSessionNote, {
+  foreignKey: "laserAssessmentId",
+  as: "sessionNotes",
+  onDelete: "CASCADE",
+});
+AssessmentSessionNote.belongsTo(LaserMedicalAssessment, {
+  foreignKey: "laserAssessmentId",
+  as: "laserAssessment",
+});
+
+LaserMedicalAssessment.hasMany(AssessmentPackageSnapshot, {
+  foreignKey: "laserAssessmentId",
+  as: "packageSnapshots",
+  onDelete: "CASCADE",
+});
+AssessmentPackageSnapshot.belongsTo(LaserMedicalAssessment, {
+  foreignKey: "laserAssessmentId",
+  as: "laserAssessment",
 });
 
 export default LaserMedicalAssessment;

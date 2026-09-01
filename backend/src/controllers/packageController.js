@@ -7,6 +7,9 @@ import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
 import Appointment from "../models/Appointment.js";
 import User from "../models/User.js";
+import MedicalAssessment from "../models/MedicalAssessment.js";
+import LaserMedicalAssessment from "../models/LaserMedicalAssessment.js";
+import AssessmentPackageSnapshot from "../models/AssessmentPackageSnapshot.js";
 
 const recomputePaymentStatus = (total, paid) =>
   paid >= total ? "Pagado" : "Con adeudo";
@@ -162,6 +165,33 @@ export const getPackagesByCustomer = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Server error while fetching customer packages",
+      error: error.message,
+    });
+  }
+};
+
+// Lista todos los paquetes (activos, completados, cancelados) que un
+// cliente ha tenido para un servicio específico — para mostrar el
+// historial completo cuando compra el mismo servicio más de una vez.
+export const getPackagesByCustomerAndService = async (req, res) => {
+  try {
+    const { customerId, serviceId } = req.params;
+    const packages = await CustomerPackage.findAll({
+      where: { customerId, serviceId, isHidden: false },
+      attributes: [
+        "packageId",
+        "status",
+        "totalSessions",
+        "sessionsCompleted",
+        "created_at",
+        "marca",
+      ],
+      order: [["created_at", "DESC"]],
+    });
+    res.status(200).json(packages);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error while fetching packages for this service",
       error: error.message,
     });
   }
@@ -445,7 +475,10 @@ export const cancelPackage = async (req, res) => {
   }
 };
 
-// Se llama internamente cuando una cita ligada a una sesión se marca Completada
+// Se llama internamente cuando una cita ligada a una sesión se marca
+// Completada. Si esta fue la ÚLTIMA sesión del paquete, además congela
+// el snapshot "Final" del expediente (Modelha DK o Depilclinik) para
+// poder compararlo después contra la línea base.
 export const syncPackageSessionOnCompletion = async (
   appointmentId,
   transaction,
@@ -474,6 +507,88 @@ export const syncPackageSessionOnCompletion = async (
     },
     { transaction },
   );
+
+  if (isFinished) {
+    await saveFinalPackageSnapshot(pkg, transaction);
+  }
+};
+
+// Congela el snapshot "Final" del expediente vivo (Modelha DK o
+// Depilclinik) asociado a este paquete, usando los mismos campos
+// comparables que se usaron para la línea base.
+const saveFinalPackageSnapshot = async (pkg, transaction) => {
+  const medicalAssessment = await MedicalAssessment.findOne({
+    where: {
+      customerId: pkg.customerId,
+      serviceId: pkg.serviceId,
+      activePackageId: pkg.packageId,
+    },
+    include: [
+      { association: "bodyEvaluation" },
+      { association: "facialEvaluation" },
+    ],
+    transaction,
+  });
+
+  if (medicalAssessment) {
+    const { buildComparableSnapshot } =
+      await import("./assessmentController.js");
+    const snapshotData = buildComparableSnapshot({
+      bodyEvaluation: medicalAssessment.bodyEvaluation?.toJSON(),
+      facialEvaluation: medicalAssessment.facialEvaluation?.toJSON(),
+    });
+
+    await AssessmentPackageSnapshot.destroy({
+      where: { packageId: pkg.packageId, snapshotType: "Final" },
+      transaction,
+    });
+    await AssessmentPackageSnapshot.create(
+      {
+        assessmentId: medicalAssessment.assessmentId,
+        packageId: pkg.packageId,
+        snapshotType: "Final",
+        snapshotData,
+      },
+      { transaction },
+    );
+    return;
+  }
+
+  const laserAssessment = await LaserMedicalAssessment.findOne({
+    where: {
+      customerId: pkg.customerId,
+      serviceId: pkg.serviceId,
+      activePackageId: pkg.packageId,
+    },
+    include: [
+      { association: "areasOfInterest" },
+      { association: "clinicalConditions" },
+    ],
+    transaction,
+  });
+
+  if (laserAssessment) {
+    const { buildLaserComparableSnapshot } =
+      await import("./laserAssessmentController.js");
+    const snapshotData = buildLaserComparableSnapshot({
+      areasOfInterest: laserAssessment.areasOfInterest?.map((a) => a.toJSON()),
+      clinicalConditions: laserAssessment.clinicalConditions?.toJSON(),
+    });
+
+    await AssessmentPackageSnapshot.destroy({
+      where: { packageId: pkg.packageId, snapshotType: "Final" },
+      transaction,
+    });
+    await AssessmentPackageSnapshot.create(
+      {
+        laserAssessmentId: laserAssessment.laserAssessmentId,
+        packageId: pkg.packageId,
+        snapshotType: "Final",
+        snapshotData,
+      },
+      { transaction },
+    );
+  }
 };
 export const hidePackage = async (req, res) => {
   const t = await sequelize.transaction();

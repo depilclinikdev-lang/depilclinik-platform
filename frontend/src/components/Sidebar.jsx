@@ -11,6 +11,7 @@ import {
   LuChevronRight,
   LuMessageCircle,
   LuX,
+  LuPackage,
 } from "react-icons/lu";
 
 const getInitials = (name) => {
@@ -51,11 +52,12 @@ const Sidebar = ({
       label: "Clientes",
       icon: <LuUser size={20} />,
       adminOnly: true,
-      hasChildren: true,
-      children: [
-        { id: "historial-expedientes", label: "Historial de Expedientes" },
-        { id: "paquetes", label: "Paquetes de Sesiones" },
-      ],
+    },
+    {
+      id: "paquetes",
+      label: "Paquetes de Sesiones",
+      icon: <LuPackage size={20} />,
+      adminOnly: true,
     },
     {
       id: "empleados",

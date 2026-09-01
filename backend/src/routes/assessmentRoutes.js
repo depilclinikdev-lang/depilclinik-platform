@@ -1,38 +1,43 @@
 import express from "express";
 import {
-  getLatestAssessmentByCustomer,
-  getAssessmentHistoryByCustomer,
+  getAssessmentByCustomerAndService,
+  getCustomerServiceSummaries,
   getAssessmentByAppointment,
-  createAssessment,
-  getAllAssessments,
-  getAssessmentById,
+  createOrUpdateAssessment,
+  getPackageComparison,
+  updateAssessmentManually,
 } from "../controllers/assessmentController.js";
 import {
   protect,
   restrictTo,
   canAttendAppointment,
 } from "../middlewares/auth.js";
-import { createHistoricalAssessment } from "../controllers/assessmentController.js";
-import { updateAssessment } from "../controllers/assessmentController.js";
-import { getHistoricalAssessmentsForCalendar } from "../controllers/assessmentController.js";
 
 const router = express.Router();
 
+// Lista los servicios que un cliente ha tenido con expediente (Modelha DK)
 router.get(
-  "/customer/:customerId/latest",
+  "/customer/:customerId/services",
   protect,
   restrictTo("Administrador"),
-  getLatestAssessmentByCustomer,
+  getCustomerServiceSummaries,
 );
 
+// Expediente vivo de un cliente para un servicio específico
 router.get(
-  "/customer/:customerId/history",
+  "/customer/:customerId/service/:serviceId",
   protect,
   restrictTo("Administrador"),
-  getAssessmentHistoryByCustomer,
+  getAssessmentByCustomerAndService,
 );
 
-router.get("/all", protect, restrictTo("Administrador"), getAllAssessments);
+// Comparación línea base / final de un paquete completado
+router.get(
+  "/package-comparison/:packageId",
+  protect,
+  restrictTo("Administrador"),
+  getPackageComparison,
+);
 
 router.get(
   "/appointment/:appointmentId",
@@ -45,23 +50,15 @@ router.post(
   "/appointment/:appointmentId",
   protect,
   canAttendAppointment,
-  createAssessment,
+  createOrUpdateAssessment,
 );
-router.post(
-  "/historical",
+
+// Edición manual del expediente vivo, sin necesidad de cita
+router.put(
+  "/:id",
   protect,
   restrictTo("Administrador"),
-  createHistoricalAssessment,
-);
-router.put("/:id", protect, restrictTo("Administrador"), updateAssessment);
-
-router.get("/:id", protect, restrictTo("Administrador"), getAssessmentById);
-
-router.get(
-  "/historical/calendar",
-  protect,
-  restrictTo("Administrador"),
-  getHistoricalAssessmentsForCalendar,
+  updateAssessmentManually,
 );
 
 export default router;

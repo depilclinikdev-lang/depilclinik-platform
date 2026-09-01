@@ -40,7 +40,13 @@ const YEARS = Array.from({ length: 3 }, (_, i) => ({
   label: String(CURRENT_YEAR + i),
 }));
 
-const PackageDetailModal = ({ isOpen, pkg, onClose, onRefresh }) => {
+const PackageDetailModal = ({
+  isOpen,
+  pkg,
+  onClose,
+  onRefresh,
+  onViewResults,
+}) => {
   const [scheduling, setScheduling] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
   const [userId, setUserId] = useState("");
@@ -376,6 +382,17 @@ const PackageDetailModal = ({ isOpen, pkg, onClose, onRefresh }) => {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {pkg.status === "Completado" && onViewResults && (
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => onViewResults(pkg)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-linear-to-r from-secondary to-depil text-white font-bold text-xs cursor-pointer"
+              >
+                <LuCheck size={15} /> Ver Resultado del Paquete
+              </button>
             </div>
           )}
 

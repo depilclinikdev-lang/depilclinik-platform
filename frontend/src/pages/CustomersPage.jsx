@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../services/api";
 import { LuSearch, LuPlus, LuPencil, LuFileText } from "react-icons/lu";
 import AddCustomerModal from "../components/AddCustomerModal";
-import CustomerAssessmentHistoryPage from "./CustomerAssessmentHistoryPage";
+import CustomerServicesPage from "./CustomerServicesPage";
 import {
   showConfirm,
   showLoading,
@@ -118,7 +118,7 @@ const CustomersPage = ({ currentUserRole }) => {
 
   if (viewingAssessmentFor) {
     return (
-      <CustomerAssessmentHistoryPage
+      <CustomerServicesPage
         customer={viewingAssessmentFor}
         onBack={() => setViewingAssessmentFor(null)}
       />
@@ -270,7 +270,7 @@ const CustomersPage = ({ currentUserRole }) => {
                             <button
                               onClick={() => setViewingAssessmentFor(customer)}
                               className="p-1.5 text-accent hover:text-depil transition-colors cursor-pointer"
-                              title="Ver Historial de Expedientes"
+                              title="Ver Servicios y Expedientes"
                             >
                               <LuFileText size={16} />
                             </button>

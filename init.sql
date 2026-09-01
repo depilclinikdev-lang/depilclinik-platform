@@ -90,6 +90,7 @@ CREATE TABLE Medical_Assessments (
     customer_id INT NOT NULL,
     appointment_id INT NULL,
     service_id INT NULL,
+    active_package_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     consultation_reason TEXT NOT NULL,
     onset_date_details VARCHAR(250) NULL,
@@ -112,9 +113,11 @@ CREATE TABLE Medical_Assessments (
     is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_assessments_customer FOREIGN KEY (customer_id) REFERENCES Customers(customer_id) ON DELETE RESTRICT,
     CONSTRAINT fk_assessments_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
-    CONSTRAINT fk_assessments_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL, 
+    CONSTRAINT fk_assessments_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL,
     CONSTRAINT fk_assessments_filled_by FOREIGN KEY (filled_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
-    CONSTRAINT fk_assessments_performed_by FOREIGN KEY (performed_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+    CONSTRAINT fk_assessments_performed_by FOREIGN KEY (performed_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_assessments_active_package FOREIGN KEY (active_package_id) REFERENCES Customer_Packages(package_id) ON DELETE SET NULL,
+    CONSTRAINT uq_medical_assessment_customer_service UNIQUE (customer_id, service_id)
 );
 
 CREATE TABLE assessment_professional_treatments (
@@ -412,6 +415,7 @@ CREATE TABLE Laser_Medical_Assessments (
     customer_id INT NOT NULL,
     appointment_id INT NULL,
     service_id INT NULL,
+    active_package_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     referred_media ENUM('Instagram', 'Facebook', 'TikTok', 'Recomendacion', 'Por su cuenta', 'Otro') NOT NULL,
     has_diseases BOOLEAN DEFAULT FALSE,
@@ -435,7 +439,9 @@ CREATE TABLE Laser_Medical_Assessments (
     CONSTRAINT fk_laser_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
     CONSTRAINT fk_laser_service FOREIGN KEY (service_id) REFERENCES Services(service_id) ON DELETE SET NULL,
     CONSTRAINT fk_laser_filled_by FOREIGN KEY (filled_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
-    CONSTRAINT fk_laser_performed_by FOREIGN KEY (performed_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+    CONSTRAINT fk_laser_performed_by FOREIGN KEY (performed_by_user_id) REFERENCES Users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_laser_active_package FOREIGN KEY (active_package_id) REFERENCES Customer_Packages(package_id) ON DELETE SET NULL,
+    CONSTRAINT uq_laser_assessment_customer_service UNIQUE (customer_id, service_id)
 );
 
 CREATE TABLE Laser_Areas_Of_Interest (
@@ -621,4 +627,49 @@ CREATE TABLE Package_Sessions (
     CONSTRAINT fk_pkgsessions_package FOREIGN KEY (package_id) REFERENCES Customer_Packages(package_id) ON DELETE CASCADE,
     CONSTRAINT fk_pkgsessions_appointment FOREIGN KEY (appointment_id) REFERENCES Appointments(appointment_id) ON DELETE SET NULL,
     UNIQUE KEY uq_package_session_number (package_id, session_number)
+);
+
+CREATE TABLE Assessment_Package_Snapshots (
+    snapshot_id INT AUTO_INCREMENT PRIMARY KEY,
+    assessment_id INT NULL,
+    laser_assessment_id INT NULL,
+    package_id INT NOT NULL,
+    snapshot_type ENUM('Baseline','Final') NOT NULL,
+    snapshot_data JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_pkgsnap_assessment FOREIGN KEY (assessment_id)
+      REFERENCES Medical_Assessments(assessment_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pkgsnap_laser FOREIGN KEY (laser_assessment_id)
+      REFERENCES Laser_Medical_Assessments(laser_assessment_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pkgsnap_package FOREIGN KEY (package_id)
+      REFERENCES Customer_Packages(package_id) ON DELETE CASCADE,
+    CONSTRAINT chk_pkgsnap_one_parent CHECK (
+      (assessment_id IS NOT NULL AND laser_assessment_id IS NULL) OR
+      (assessment_id IS NULL AND laser_assessment_id IS NOT NULL)
+    ),
+    UNIQUE KEY uq_pkgsnap (package_id, snapshot_type)
+);
+
+CREATE TABLE Assessment_Session_Notes (
+    note_id INT AUTO_INCREMENT PRIMARY KEY,
+    assessment_id INT NULL,
+    laser_assessment_id INT NULL,
+    note_date DATE NOT NULL,
+    package_id INT NULL,
+    session_number INT NULL,
+    note_text TEXT NOT NULL,
+    created_by_user_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_note_assessment FOREIGN KEY (assessment_id)
+      REFERENCES Medical_Assessments(assessment_id) ON DELETE CASCADE,
+    CONSTRAINT fk_note_laser FOREIGN KEY (laser_assessment_id)
+      REFERENCES Laser_Medical_Assessments(laser_assessment_id) ON DELETE CASCADE,
+    CONSTRAINT fk_note_user FOREIGN KEY (created_by_user_id)
+      REFERENCES Users(user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_note_package FOREIGN KEY (package_id)
+      REFERENCES Customer_Packages(package_id) ON DELETE SET NULL,
+    CONSTRAINT chk_note_one_parent CHECK (
+      (assessment_id IS NOT NULL AND laser_assessment_id IS NULL) OR
+      (assessment_id IS NULL AND laser_assessment_id IS NOT NULL)
+    )
 );

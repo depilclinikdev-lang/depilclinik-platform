@@ -11,6 +11,8 @@ import PatientAllergiesRecord from "./PatientAllergiesRecord.js";
 import BodyEvaluation from "./BodyEvaluation.js";
 import FacialEvaluation from "./FacialEvaluation.js";
 import Service from "./Service.js";
+import AssessmentPackageSnapshot from "./AssessmentPackageSnapshot.js";
+import AssessmentSessionNote from "./AssessmentSessionNote.js";
 
 const MedicalAssessment = sequelize.define(
   "MedicalAssessment",
@@ -35,6 +37,11 @@ const MedicalAssessment = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: "service_id",
+    },
+    activePackageId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "active_package_id",
     },
     serviceDate: {
       type: DataTypes.DATEONLY,
@@ -257,6 +264,26 @@ FacialEvaluation.belongsTo(MedicalAssessment, {
 MedicalAssessment.belongsTo(Service, {
   foreignKey: "serviceId",
   as: "service",
+});
+
+MedicalAssessment.hasMany(AssessmentSessionNote, {
+  foreignKey: "assessmentId",
+  as: "sessionNotes",
+  onDelete: "CASCADE",
+});
+AssessmentSessionNote.belongsTo(MedicalAssessment, {
+  foreignKey: "assessmentId",
+  as: "assessment",
+});
+
+MedicalAssessment.hasMany(AssessmentPackageSnapshot, {
+  foreignKey: "assessmentId",
+  as: "packageSnapshots",
+  onDelete: "CASCADE",
+});
+AssessmentPackageSnapshot.belongsTo(MedicalAssessment, {
+  foreignKey: "assessmentId",
+  as: "assessment",
 });
 
 export default MedicalAssessment;

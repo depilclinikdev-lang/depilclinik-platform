@@ -20,6 +20,7 @@ const TABS = [
   "Corporal",
   "Facial",
   "Fotos",
+  "Notas",
 ];
 
 const BACKGROUND_ITEMS = [
@@ -227,6 +228,8 @@ const ModelhaAssessmentForm = ({
   initialData = null,
   isEditMode = false,
   embedded = false,
+  requireSessionNote = false,
+  packagesForNotes = [],
 }) => {
   const buildStateFromAssessment = (assessment) => {
     if (!assessment) return initialState;
@@ -302,7 +305,19 @@ const ModelhaAssessmentForm = ({
 
   const [activeTab, setActiveTab] = useState("General");
   const [formError, setFormError] = useState("");
+  const [sessionNote, setSessionNote] = useState("");
   const [form, setForm] = useState(() => buildStateFromAssessment(initialData));
+
+  // Mapa packageId -> número de paquete (#1 = el más antiguo), para
+  // mostrarlo junto a cada nota de sesión.
+  const packageNumberMap = React.useMemo(() => {
+    const map = {};
+    const total = packagesForNotes.length;
+    packagesForNotes.forEach((pkg, index) => {
+      map[pkg.packageId] = total - index;
+    });
+    return map;
+  }, [packagesForNotes]);
 
   // --- Cálculo automático de IMC ---
   useEffect(() => {
@@ -385,6 +400,25 @@ const ModelhaAssessmentForm = ({
     }));
   };
 
+  // Quita IDs internos de sub-tablas que pudieron llegar precargados desde
+  // el expediente de otro servicio (plantilla) — nunca deben viajar de
+  // vuelta al guardar, o Sequelize intenta reusar esa clave primaria.
+  const stripInternalIds = (obj) => {
+    if (!obj || typeof obj !== "object") return obj;
+    const clean = { ...obj };
+    delete clean.routineId;
+    delete clean.habitId;
+    delete clean.backgroundId;
+    delete clean.allergyRecordId;
+    delete clean.bodyEvalId;
+    delete clean.facialEvalId;
+    delete clean.gynecoId;
+    delete clean.assessmentId;
+    delete clean.createdAt;
+    delete clean.created_at;
+    return clean;
+  };
+
   const buildPayload = () => {
     const cleanGyneco = form.gynecoRecord
       ? {
@@ -408,6 +442,7 @@ const ModelhaAssessmentForm = ({
       ...(isEditMode && form.serviceDate
         ? { assessmentDate: form.serviceDate }
         : {}),
+      ...(requireSessionNote ? { sessionNote } : {}),
       general: {
         ...form.general,
         temperatureC: form.general.temperatureC || null,
@@ -420,7 +455,7 @@ const ModelhaAssessmentForm = ({
       })),
       gynecoRecord:
         cleanGyneco && Object.values(cleanGyneco).some((v) => v !== null)
-          ? cleanGyneco
+          ? stripInternalIds(cleanGyneco)
           : null,
       obstetricDetails: form.obstetricDetails
         .filter((d) => d.countValue !== "" && d.countValue !== null)
@@ -430,9 +465,9 @@ const ModelhaAssessmentForm = ({
           notes: d.notes || null,
         })),
       skincareRoutine: Object.keys(form.skincareRoutine).length
-        ? form.skincareRoutine
+        ? stripInternalIds(form.skincareRoutine)
         : null,
-      lifestyleHabit: form.lifestyleHabit,
+      lifestyleHabit: stripInternalIds(form.lifestyleHabit),
       dietRatings: Object.entries(form.dietRatingsMap).map(
         ([foodItem, ratingValue]) => ({
           foodItem,
@@ -442,14 +477,22 @@ const ModelhaAssessmentForm = ({
       skinPractices: form.skinPracticesSelected.map((substanceType) => ({
         substanceType,
       })),
-      medicalBackground: form.medicalBackground,
-      allergiesRecord: form.allergiesRecord,
-      bodyEvaluation: form.bodyEvaluation,
-      facialEvaluation: form.facialEvaluation,
+      medicalBackground: stripInternalIds(form.medicalBackground),
+      allergiesRecord: stripInternalIds(form.allergiesRecord),
+      bodyEvaluation: stripInternalIds(form.bodyEvaluation),
+      facialEvaluation: stripInternalIds(form.facialEvaluation),
     };
   };
 
   const validateForm = () => {
+    if (requireSessionNote && !sessionNote.trim()) {
+      return {
+        tab: "Notas",
+        message:
+          "Debes escribir la nota de esta sesión antes de guardar. Si no quieres capturarla ahora, sal con el botón Regresar.",
+      };
+    }
+
     if (!form.general.consultationReason?.trim()) {
       return {
         tab: "General",
@@ -1415,6 +1458,65 @@ const ModelhaAssessmentForm = ({
           pendingUploads={pendingPhotos}
           onFileSelect={onPhotoSelect}
         />
+      )}
+
+      {activeTab === "Notas" && (
+        <div className="flex flex-col gap-4">
+          {requireSessionNote && (
+            <TextAreaField
+              label="Nota de esta sesión *"
+              value={sessionNote}
+              onChange={setSessionNote}
+              rows={4}
+            />
+          )}
+
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-bold text-primary uppercase mb-3">
+              Historial de Notas
+            </p>
+            {!initialData?.sessionNotes ||
+            initialData.sessionNotes.length === 0 ? (
+              <p className="text-xs text-gray-400">
+                Aún no hay notas registradas para este servicio.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {initialData.sessionNotes.map((note) => (
+                  <div
+                    key={note.noteId}
+                    className="bg-gray-50/70 rounded-xl p-3 border border-gray-100"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[11px] font-bold text-secondary">
+                        {new Date(note.noteDate).toLocaleDateString("es-MX", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        })}
+                      </p>
+                      {note.packageId ? (
+                        <span className="text-[10px] font-bold text-white bg-secondary/80 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {packageNumberMap[note.packageId]
+                            ? `Paquete #${packageNumberMap[note.packageId]} · Sesión ${note.sessionNumber}`
+                            : `Sesión ${note.sessionNumber} de paquete`}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          Cita individual
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-primary whitespace-pre-wrap">
+                      {note.noteText}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="border-t border-gray-100 pt-4 flex justify-end">

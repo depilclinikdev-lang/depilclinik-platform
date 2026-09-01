@@ -7,7 +7,7 @@ import {
 } from "./FormField";
 import AssessmentPhotosSection from "./AssessmentPhotosSection";
 
-const TABS = ["Información", "Historia Clínica", "Fotos"];
+const TABS = ["Información", "Historia Clínica", "Fotos", "Notas"];
 
 const AREAS = ["Extra Chicas", "Chicas", "Mediana", "Grande", "Full Body"];
 
@@ -62,6 +62,7 @@ const LaserAssessmentForm = ({
   initialData = null,
   isEditMode = false,
   embedded = false,
+  requireSessionNote = false,
 }) => {
   const buildStateFromAssessment = (assessment) => {
     if (!assessment) return initialState;
@@ -90,6 +91,8 @@ const LaserAssessmentForm = ({
   };
 
   const [activeTab, setActiveTab] = useState("Información");
+  const [sessionNote, setSessionNote] = useState("");
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState(() => buildStateFromAssessment(initialData));
 
   const updateGeneral = (field, value) => {
@@ -121,16 +124,43 @@ const LaserAssessmentForm = ({
     });
   };
 
+  const stripInternalIds = (obj) => {
+    if (!obj || typeof obj !== "object") return obj;
+    const clean = { ...obj };
+    delete clean.conditionId;
+    delete clean.laserAssessmentId;
+    return clean;
+  };
+
   const buildPayload = () => ({
     ...(isEditMode && form.serviceDate
       ? { assessmentDate: form.serviceDate }
       : {}),
+    ...(requireSessionNote ? { sessionNote } : {}),
     general: form.general,
     areasOfInterest: form.selectedAreas,
-    clinicalConditions: form.clinicalConditions,
+    clinicalConditions: stripInternalIds(form.clinicalConditions),
   });
 
+  const validateForm = () => {
+    if (requireSessionNote && !sessionNote.trim()) {
+      return {
+        tab: "Notas",
+        message:
+          "Debes escribir la nota de esta sesión antes de guardar. Si no quieres capturarla ahora, sal con el botón Regresar.",
+      };
+    }
+    return null;
+  };
+
   const handleSaveClick = () => {
+    const error = validateForm();
+    if (error) {
+      setFormError(error.message);
+      setActiveTab(error.tab);
+      return;
+    }
+    setFormError("");
     onSubmit(buildPayload());
   };
 
@@ -168,6 +198,11 @@ const LaserAssessmentForm = ({
         </div>
       </div>
 
+      {formError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-semibold rounded-xl px-4 py-3">
+          {formError}
+        </div>
+      )}
       {activeTab === "Información" && (
         <div className="flex flex-col gap-4">
           {isEditMode && (
@@ -370,6 +405,65 @@ const LaserAssessmentForm = ({
           pendingUploads={pendingPhotos}
           onFileSelect={onPhotoSelect}
         />
+      )}
+
+      {activeTab === "Notas" && (
+        <div className="flex flex-col gap-4">
+          {requireSessionNote && (
+            <TextAreaField
+              label="Nota de esta sesión *"
+              value={sessionNote}
+              onChange={setSessionNote}
+              rows={4}
+            />
+          )}
+
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-bold text-primary uppercase mb-3">
+              Historial de Notas
+            </p>
+            {!initialData?.sessionNotes ||
+            initialData.sessionNotes.length === 0 ? (
+              <p className="text-xs text-gray-400">
+                Aún no hay notas registradas para este servicio.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {initialData.sessionNotes.map((note) => (
+                  <div
+                    key={note.noteId}
+                    className="bg-gray-50/70 rounded-xl p-3 border border-gray-100"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[11px] font-bold text-secondary">
+                        {new Date(note.noteDate).toLocaleDateString("es-MX", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        })}
+                      </p>
+                      {note.packageId ? (
+                        <span className="text-[10px] font-bold text-white bg-secondary/80 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          {packageNumberMap[note.packageId]
+                            ? `Paquete #${packageNumberMap[note.packageId]} · Sesión ${note.sessionNumber}`
+                            : `Sesión ${note.sessionNumber} de paquete`}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                          Cita individual
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-primary whitespace-pre-wrap">
+                      {note.noteText}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="border-t border-gray-100 pt-4 flex justify-end">

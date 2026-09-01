@@ -6,10 +6,12 @@ import {
   LuCalendarPlus,
   LuWallet,
   LuPencil,
+  LuCheck,
 } from "react-icons/lu";
 import SellPackageModal from "../components/SellPackageModal";
 import PackageDetailModal from "../components/PackageDetailModal";
 import EditPackageModal from "../components/EditPackageModal";
+import PackageComparisonView from "../components/clinicalRecord/PackageComparisonView";
 import {
   showLoading,
   closeAlert,
@@ -30,6 +32,7 @@ const PackagesPage = () => {
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [editingPackage, setEditingPackage] = useState(null);
+  const [viewingResultsFor, setViewingResultsFor] = useState(null);
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -95,6 +98,17 @@ const PackagesPage = () => {
       console.error(err);
     }
   };
+
+  if (viewingResultsFor) {
+    return (
+      <PackageComparisonView
+        packageId={viewingResultsFor.packageId}
+        type={viewingResultsFor.type}
+        customerName={viewingResultsFor.customerName}
+        onBack={() => setViewingResultsFor(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 w-full text-left">
@@ -245,12 +259,30 @@ const PackagesPage = () => {
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenDetail(pkg.packageId)}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-secondary/10 text-secondary font-bold text-xs hover:bg-secondary/20 transition-colors cursor-pointer"
-                          >
-                            <LuCalendarPlus size={14} /> Agendar
-                          </button>
+                          {pkg.status === "Completado" ? (
+                            <button
+                              onClick={() =>
+                                setViewingResultsFor({
+                                  packageId: pkg.packageId,
+                                  type:
+                                    pkg.marca === "Modelha DK"
+                                      ? "medical"
+                                      : "laser",
+                                  customerName: pkg.customer?.name,
+                                })
+                              }
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-linear-to-r from-secondary to-depil text-white font-bold text-xs hover:opacity-90 transition-opacity cursor-pointer"
+                            >
+                              <LuCheck size={14} /> Ver Resultado
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenDetail(pkg.packageId)}
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-secondary/10 text-secondary font-bold text-xs hover:bg-secondary/20 transition-colors cursor-pointer"
+                            >
+                              <LuCalendarPlus size={14} /> Agendar
+                            </button>
+                          )}
                           <button
                             onClick={() => handleHidePackage(pkg)}
                             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold text-xs hover:bg-red-100 transition-colors cursor-pointer"
@@ -288,6 +320,14 @@ const PackagesPage = () => {
           await fetchPackages();
           if (selectedPackage)
             await handleOpenDetail(selectedPackage.packageId);
+        }}
+        onViewResults={(pkg) => {
+          setSelectedPackage(null);
+          setViewingResultsFor({
+            packageId: pkg.packageId,
+            type: pkg.marca === "Modelha DK" ? "medical" : "laser",
+            customerName: pkg.customer?.name,
+          });
         }}
       />
       <EditPackageModal

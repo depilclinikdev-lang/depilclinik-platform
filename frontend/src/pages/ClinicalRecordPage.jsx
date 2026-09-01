@@ -25,8 +25,6 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
   const [saving, setSaving] = useState(false);
   const [pendingPhotos, setPendingPhotos] = useState({});
 
-  // Una vez que el expediente se guarda en BD, ya no se puede reenviar el
-  // formulario; solo permitimos reintentar la subida de fotos fallidas.
   const [savedRecord, setSavedRecord] = useState(null);
   const [photoRecords, setPhotoRecords] = useState([]);
   const [photoStatuses, setPhotoStatuses] = useState({});
@@ -73,7 +71,6 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
   }, [appointmentId]);
 
   const handleExitClick = async () => {
-    // El expediente ya está guardado en BD; no hay nada que perder al salir.
     if (savedRecord) {
       onExit();
       return;
@@ -88,8 +85,6 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
     if (confirmed) onExit();
   };
 
-  // Sube una sola foto para un ángulo específico, usando los registros
-  // (placeholders) ya creados por createPendingPhotosForAssessment.
   const uploadPhotoForAngle = async (angle, file, records) => {
     const matchingPhoto = records.find((p) => p.photoAngle === angle);
     if (!matchingPhoto) {
@@ -106,7 +101,7 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
   const handleSave = async (payload) => {
     const confirmed = await showConfirm({
       title: "¿Guardar expediente?",
-      text: "Una vez guardado, no podrás volver a editarlo ni consultarlo desde tu usuario.",
+      text: "Una vez guardado, la cita quedará marcada como completada.",
       icon: "question",
       confirmButtonText: "Sí, guardar",
     });
@@ -121,7 +116,7 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
           : `/laser-assessments/appointment/${appointmentId}`;
 
       const response = await api.post(endpoint, payload);
-      const createdAssessment = response.data;
+      const createdAssessment = response.data.assessment;
       setSavedRecord(createdAssessment);
 
       const photoQuery =
@@ -192,6 +187,13 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
     .filter(([, status]) => status === "error")
     .map(([angle]) => angle);
 
+  const hasExistingAssessment = Boolean(
+    appointmentData?.assessment && appointmentData?.isExactMatch,
+  );
+  const isTemplateFromOtherService = Boolean(
+    appointmentData?.assessment && !appointmentData?.isExactMatch,
+  );
+
   return (
     <div className="min-h-screen w-full bg-[#eef2f5] flex flex-col">
       <header className="sticky top-0 z-20 bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 shadow-sm">
@@ -256,7 +258,6 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
                     </p>
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2">
                   {failedAngles.map((angle) => (
                     <div
@@ -300,6 +301,36 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+            {hasExistingAssessment && (
+              <div className="mb-5 -mt-2 flex items-start gap-2.5 bg-secondary/5 border border-secondary/15 rounded-xl px-4 py-3">
+                <LuTriangleAlert
+                  size={16}
+                  className="text-secondary shrink-0 mt-0.5"
+                />
+                <p className="text-xs text-primary">
+                  Este cliente ya tiene un expediente de este servicio. Se
+                  precargó con su última información — revísala y actualiza lo
+                  que corresponda a esta sesión.
+                </p>
+              </div>
+            )}
+
+            {isTemplateFromOtherService && (
+              <div className="mb-5 -mt-2 flex items-start gap-2.5 bg-secondary/5 border border-secondary/15 rounded-xl px-4 py-3">
+                <LuTriangleAlert
+                  size={16}
+                  className="text-secondary shrink-0 mt-0.5"
+                />
+                <p className="text-xs text-primary">
+                  Este es un servicio nuevo para este cliente. Se precargaron
+                  sus datos generales de otro servicio ({" "}
+                  <strong>revísalos y actualiza lo necesario</strong>) — las
+                  notas de sesión son específicas de este servicio y arrancan
+                  vacías.
+                </p>
+              </div>
+            )}
+
             {brand === "Modelha DK" && (
               <ModelhaAssessmentForm
                 onSubmit={handleSave}
@@ -307,6 +338,8 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
                 customerName={appointmentData?.customer?.name}
                 pendingPhotos={pendingPhotos}
                 onPhotoSelect={handlePhotoSelect}
+                initialData={appointmentData?.assessment}
+                requireSessionNote
               />
             )}
 
@@ -317,6 +350,8 @@ const ClinicalRecordPage = ({ appointmentId, currentUser, onExit }) => {
                 customerName={appointmentData?.customer?.name}
                 pendingPhotos={pendingPhotos}
                 onPhotoSelect={handlePhotoSelect}
+                initialData={appointmentData?.assessment}
+                requireSessionNote
               />
             )}
           </div>

@@ -68,13 +68,15 @@ export const restrictTo = (...roles) => {
   };
 };
 
+// Un colaborador puede atender la cita si está asignada a él y aún no ha
+// sido completada. Una vez que la cita pasa a "Completada" (justo al
+// guardar el expediente), queda bloqueada para ese colaborador — solo el
+// Administrador puede reabrirla para corregir algo.
 export const canAttendAppointment = async (req, res, next) => {
   try {
     const { appointmentId } = req.params;
 
-    const appointment = await Appointment.findByPk(appointmentId, {
-      include: ["medicalAssessment", "laserAssessment"],
-    });
+    const appointment = await Appointment.findByPk(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({ message: "Cita no encontrada" });
@@ -94,14 +96,9 @@ export const canAttendAppointment = async (req, res, next) => {
       });
     }
 
-    const existingAssessment =
-      appointment.marca === "Modelha DK"
-        ? appointment.medicalAssessment
-        : appointment.laserAssessment;
-
-    if (existingAssessment?.lockedForCollaborator) {
+    if (appointment.status === "Completada") {
       return res.status(403).json({
-        message: "Este expediente ya fue guardado y no puede volver a abrirse",
+        message: "Esta cita ya fue atendida y no puede volver a abrirse",
       });
     }
 
