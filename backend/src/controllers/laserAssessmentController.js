@@ -149,7 +149,7 @@ export const getLaserAssessmentByAppointment = async (req, res) => {
   try {
     const appointment = req.appointment;
 
-    let assessment = await MedicalAssessment.findOne({
+    let assessment = await LaserMedicalAssessment.findOne({
       where: {
         customerId: appointment.customerId,
         serviceId: appointment.serviceId,

@@ -63,6 +63,7 @@ const LaserAssessmentForm = ({
   isEditMode = false,
   embedded = false,
   requireSessionNote = false,
+  packagesForNotes = [],
 }) => {
   const buildStateFromAssessment = (assessment) => {
     if (!assessment) return initialState;
@@ -94,6 +95,17 @@ const LaserAssessmentForm = ({
   const [sessionNote, setSessionNote] = useState("");
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState(() => buildStateFromAssessment(initialData));
+
+  // Mapa packageId -> número de paquete (#1 = el más antiguo), para
+  // mostrarlo junto a cada nota de sesión.
+  const packageNumberMap = React.useMemo(() => {
+    const map = {};
+    const total = packagesForNotes.length;
+    packagesForNotes.forEach((pkg, index) => {
+      map[pkg.packageId] = total - index;
+    });
+    return map;
+  }, [packagesForNotes]);
 
   const updateGeneral = (field, value) => {
     setForm((prev) => ({
