@@ -6,6 +6,7 @@ import {
   createOrUpdateAssessment,
   getPackageComparison,
   updateAssessmentManually,
+  createHistoricalEntry,
 } from "../controllers/assessmentController.js";
 import {
   protect,
@@ -59,6 +60,14 @@ router.put(
   protect,
   restrictTo("Administrador"),
   updateAssessmentManually,
+);
+
+// Registro histórico (fecha anterior a hoy, sin cita)
+router.post(
+  "/historical-entry",
+  protect,
+  restrictTo("Administrador"),
+  createHistoricalEntry,
 );
 
 export default router;

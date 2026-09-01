@@ -515,4 +515,141 @@ export const updateLaserAssessmentManually = async (req, res) => {
   }
 };
 
+// Registro histórico de un servicio ya realizado (sin cita), para cargar
+// historial en papel. Solo permite fechas estrictamente anteriores a hoy.
+export const createLaserHistoricalEntry = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const { customerId, serviceId, serviceDate } = req.body;
+
+    if (!customerId || !serviceId || !serviceDate) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "Cliente, servicio y fecha son obligatorios",
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const parsedDate = new Date(`${serviceDate}T00:00:00`);
+
+    if (isNaN(parsedDate.getTime()) || parsedDate >= today) {
+      await t.rollback();
+      return res.status(400).json({
+        message:
+          "La fecha debe ser anterior a hoy — este registro es para historial ya ocurrido, no para citas de hoy o futuras",
+      });
+    }
+
+    const sanitizedBody = sanitizeEmptyStrings(req.body);
+    const { general, areasOfInterest, clinicalConditions, sessionNote } =
+      sanitizedBody;
+
+    if (!general || !general.referredMedia) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "El medio de referencia es obligatorio",
+      });
+    }
+
+    if (!allowedReferredMedia.includes(general.referredMedia)) {
+      await t.rollback();
+      return res.status(400).json({
+        message: `Medio de referencia inválido: ${general.referredMedia}`,
+      });
+    }
+
+    let assessment = await LaserMedicalAssessment.findOne({
+      where: { customerId, serviceId },
+      transaction: t,
+    });
+
+    const basePayload = {
+      customerId,
+      appointmentId: null,
+      serviceId,
+      serviceDate,
+      activePackageId: null,
+      ...general,
+      filledByUserId: req.user.id,
+      filledAt: new Date(),
+      lockedForCollaborator: false,
+      isHidden: false,
+    };
+
+    if (assessment) {
+      await assessment.update(basePayload, { transaction: t });
+    } else {
+      assessment = await LaserMedicalAssessment.create(basePayload, {
+        transaction: t,
+      });
+    }
+
+    await LaserAreaOfInterest.destroy({
+      where: { laserAssessmentId: assessment.laserAssessmentId },
+      transaction: t,
+    });
+    if (areasOfInterest?.length > 0) {
+      await LaserAreaOfInterest.bulkCreate(
+        areasOfInterest.map((areaName) => ({
+          areaName,
+          laserAssessmentId: assessment.laserAssessmentId,
+        })),
+        { transaction: t },
+      );
+    }
+
+    if (clinicalConditions) {
+      const existingConditions = await LaserClinicalCondition.findOne({
+        where: { laserAssessmentId: assessment.laserAssessmentId },
+        transaction: t,
+      });
+      if (existingConditions) {
+        await existingConditions.update(clinicalConditions, {
+          transaction: t,
+        });
+      } else {
+        await LaserClinicalCondition.create(
+          {
+            ...clinicalConditions,
+            laserAssessmentId: assessment.laserAssessmentId,
+          },
+          { transaction: t },
+        );
+      }
+    }
+
+    if (sessionNote && sessionNote.trim()) {
+      await AssessmentSessionNote.create(
+        {
+          laserAssessmentId: assessment.laserAssessmentId,
+          noteDate: serviceDate,
+          noteText: sessionNote.trim(),
+          createdByUserId: req.user.id,
+          packageId: null,
+          sessionNumber: null,
+        },
+        { transaction: t },
+      );
+    }
+
+    await t.commit();
+
+    const fullAssessment = await LaserMedicalAssessment.findByPk(
+      assessment.laserAssessmentId,
+      { include: fullIncludes },
+    );
+
+    res.status(201).json(fullAssessment);
+  } catch (error) {
+    await t.rollback();
+    console.error("Error creating laser historical entry:", error);
+    res.status(500).json({
+      message: "Server error while creating laser historical entry",
+      error: error.message,
+    });
+  }
+};
+
 export { buildLaserComparableSnapshot };

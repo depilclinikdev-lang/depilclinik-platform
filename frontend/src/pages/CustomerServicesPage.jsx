@@ -5,6 +5,7 @@ import AssessmentSummaryView from "../components/clinicalRecord/AssessmentSummar
 import ModelhaAssessmentForm from "../components/clinicalRecord/ModelhaAssessmentForm";
 import LaserAssessmentForm from "../components/clinicalRecord/LaserAssessmentForm";
 import PackageComparisonView from "../components/clinicalRecord/PackageComparisonView";
+import HistoricalEntrySetupModal from "../components/HistoricalEntrySetupModal";
 import {
   showLoading,
   closeAlert,
@@ -27,6 +28,8 @@ const CustomerServicesPage = ({ customer, onBack }) => {
   const [servicePackages, setServicePackages] = useState([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const [isHistoricalSetupOpen, setIsHistoricalSetupOpen] = useState(false);
+  const [historicalSetupData, setHistoricalSetupData] = useState(null);
 
   const fetchServices = useCallback(async () => {
     try {
@@ -120,6 +123,42 @@ const CustomerServicesPage = ({ customer, onBack }) => {
     }
   };
 
+  const handleConfirmHistoricalSetup = (data) => {
+    setHistoricalSetupData(data);
+    setIsHistoricalSetupOpen(false);
+  };
+
+  const handleSaveHistorical = async (formPayload) => {
+    setSaving(true);
+    showLoading("Guardando registro histórico...");
+    try {
+      const endpoint =
+        historicalSetupData.brand === "Modelha DK"
+          ? "/assessments/historical-entry"
+          : "/laser-assessments/historical-entry";
+
+      await api.post(endpoint, {
+        ...formPayload,
+        customerId: customer.customerId,
+        serviceId: historicalSetupData.serviceId,
+        serviceDate: historicalSetupData.assessmentDate,
+      });
+
+      closeAlert();
+      showSuccess("Registro histórico guardado");
+      setHistoricalSetupData(null);
+      fetchServices();
+    } catch (err) {
+      closeAlert();
+      showError(
+        "Error",
+        err.response?.data?.message || "No se pudo guardar el registro",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatDate = (value) => {
     if (!value) return "Fecha no registrada";
     const parsed = new Date(value);
@@ -206,6 +245,59 @@ const CustomerServicesPage = ({ customer, onBack }) => {
     );
   }
 
+  if (historicalSetupData) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#eef2f5] flex flex-col overflow-hidden">
+        <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4 shadow-sm z-20">
+          <button
+            onClick={() => setHistoricalSetupData(null)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-borderClinik bg-white text-sm font-bold text-primary hover:bg-gray-50 hover:border-secondary transition-colors cursor-pointer shadow-sm"
+          >
+            <LuArrowLeft size={18} />
+            Regresar
+          </button>
+          <div className="w-px h-6 bg-gray-200" />
+          <span className="text-lg font-black tracking-wide text-primary">
+            Registro Histórico
+            <span className="ml-2 text-sm font-semibold text-accent">
+              · {historicalSetupData.brand}
+            </span>
+          </span>
+        </header>
+
+        <main className="flex-1 p-6 max-w-5xl w-full mx-auto overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 mt-6 mb-6">
+            {historicalSetupData.brand === "Modelha DK" ? (
+              <ModelhaAssessmentForm
+                onSubmit={handleSaveHistorical}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+                isEditMode
+                isManualEdit
+                hideDateField
+                allowSessionNote
+              />
+            ) : (
+              <LaserAssessmentForm
+                onSubmit={handleSaveHistorical}
+                saving={saving}
+                customerName={customer.name}
+                pendingPhotos={{}}
+                onPhotoSelect={() => {}}
+                isEditMode
+                isManualEdit
+                hideDateField
+                allowSessionNote
+              />
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 w-full text-left">
       <div className="flex items-center gap-4">
@@ -223,6 +315,12 @@ const CustomerServicesPage = ({ customer, onBack }) => {
           </h2>
           <p className="text-xs text-accent">{customer.name}</p>
         </div>
+        <button
+          onClick={() => setIsHistoricalSetupOpen(true)}
+          className="ml-auto px-4 py-2 rounded-full bg-primary text-white text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+        >
+          + Registrar Servicio Anterior
+        </button>
       </div>
 
       {loading ? (
@@ -402,6 +500,12 @@ const CustomerServicesPage = ({ customer, onBack }) => {
           </div>
         </div>
       )}
+
+      <HistoricalEntrySetupModal
+        isOpen={isHistoricalSetupOpen}
+        onClose={() => setIsHistoricalSetupOpen(false)}
+        onConfirm={handleConfirmHistoricalSetup}
+      />
     </div>
   );
 };

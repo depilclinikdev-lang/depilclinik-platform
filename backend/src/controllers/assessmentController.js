@@ -61,6 +61,23 @@ const allowedReferredMedia = [
 
 const allowedPeriodTypes = ["Regular", "Irregular", "Colicos", "Antojos"];
 
+const ALLOWED_OBSTETRIC_CONDITIONS = ["Embarazo", "Aborto", "Lactancia"];
+
+const validateObstetricDetails = (obstetricDetails) => {
+  if (!obstetricDetails || obstetricDetails.length === 0) return null;
+
+  for (let i = 0; i < obstetricDetails.length; i++) {
+    const item = obstetricDetails[i];
+    if (!ALLOWED_OBSTETRIC_CONDITIONS.includes(item.conditionStatus)) {
+      return `En "Embarazos / Abortos / Lactancia", el tipo de la fila ${i + 1} no es válido. Selecciona Embarazo, Aborto o Lactancia.`;
+    }
+    if (!item.countValue || Number(item.countValue) < 1) {
+      return `En "Embarazos / Abortos / Lactancia", la cantidad de la fila ${i + 1} debe ser un número mayor a 0.`;
+    }
+  }
+  return null;
+};
+
 // Campos comparables para la tabla de resultados de un paquete completado.
 // Solo estos se incluyen en el snapshot de línea base / final.
 const buildComparableSnapshot = ({ bodyEvaluation, facialEvaluation }) => {
@@ -807,6 +824,248 @@ export const updateAssessmentManually = async (req, res) => {
     console.error("Error updating assessment manually:", error);
     res.status(500).json({
       message: "Server error while updating assessment",
+      error: error.message,
+    });
+  }
+};
+
+// Registro histórico de un servicio ya realizado (sin cita), para cargar
+// historial en papel. Solo permite fechas estrictamente anteriores a hoy.
+export const createHistoricalEntry = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    const { customerId, serviceId, serviceDate } = req.body;
+
+    if (!customerId || !serviceId || !serviceDate) {
+      await t.rollback();
+      return res.status(400).json({
+        message: "Cliente, servicio y fecha son obligatorios",
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const parsedDate = new Date(`${serviceDate}T00:00:00`);
+
+    if (isNaN(parsedDate.getTime()) || parsedDate >= today) {
+      await t.rollback();
+      return res.status(400).json({
+        message:
+          "La fecha debe ser anterior a hoy — este registro es para historial ya ocurrido, no para citas de hoy o futuras",
+      });
+    }
+
+    const sanitizedBody = sanitizeEmptyStrings(req.body);
+    const {
+      general,
+      professionalTreatments,
+      gynecoRecord,
+      obstetricDetails,
+      skincareRoutine,
+      lifestyleHabit,
+      dietRatings,
+      skinPractices,
+      medicalBackground,
+      allergiesRecord,
+      bodyEvaluation,
+      facialEvaluation,
+      sessionNote,
+    } = sanitizedBody;
+
+    if (!general || !general.consultationReason || !general.referredMedia) {
+      await t.rollback();
+      return res.status(400).json({
+        message:
+          "El motivo de consulta y el medio de referencia son obligatorios",
+      });
+    }
+
+    if (!allowedReferredMedia.includes(general.referredMedia)) {
+      await t.rollback();
+      return res.status(400).json({
+        message: `Medio de referencia inválido: ${general.referredMedia}`,
+      });
+    }
+
+    if (gynecoRecord?.periodType) {
+      const cleanPeriodType = gynecoRecord.periodType.trim();
+      if (cleanPeriodType && !allowedPeriodTypes.includes(cleanPeriodType)) {
+        await t.rollback();
+        return res.status(400).json({
+          message: `Tipo de periodo inválido: ${cleanPeriodType}`,
+        });
+      }
+      gynecoRecord.periodType = cleanPeriodType || null;
+    }
+
+    const obstetricError = validateObstetricDetails(obstetricDetails);
+    if (obstetricError) {
+      await t.rollback();
+      return res.status(400).json({ message: obstetricError });
+    }
+
+    let assessment = await MedicalAssessment.findOne({
+      where: { customerId, serviceId },
+      transaction: t,
+    });
+
+    const basePayload = {
+      customerId,
+      appointmentId: null,
+      serviceId,
+      serviceDate,
+      activePackageId: null,
+      ...general,
+      filledByUserId: req.user.id,
+      filledAt: new Date(),
+      lockedForCollaborator: false,
+      isHidden: false,
+    };
+
+    if (assessment) {
+      await assessment.update(basePayload, { transaction: t });
+    } else {
+      assessment = await MedicalAssessment.create(basePayload, {
+        transaction: t,
+      });
+    }
+
+    await AssessmentProfessionalTreatment.destroy({
+      where: { assessmentId: assessment.assessmentId },
+      transaction: t,
+    });
+    if (professionalTreatments?.length > 0) {
+      await AssessmentProfessionalTreatment.bulkCreate(
+        professionalTreatments.map((item) => ({
+          ...item,
+          assessmentId: assessment.assessmentId,
+        })),
+        { transaction: t },
+      );
+    }
+
+    if (gynecoRecord) {
+      const existingGyneco = await GynecoObstetricRecord.findOne({
+        where: { assessmentId: assessment.assessmentId },
+        transaction: t,
+      });
+      let gynecoRow;
+      if (existingGyneco) {
+        await existingGyneco.update(gynecoRecord, { transaction: t });
+        gynecoRow = existingGyneco;
+      } else {
+        gynecoRow = await GynecoObstetricRecord.create(
+          { ...gynecoRecord, assessmentId: assessment.assessmentId },
+          { transaction: t },
+        );
+      }
+      await ObstetricHistoryDetail.destroy({
+        where: { gynecoId: gynecoRow.gynecoId },
+        transaction: t,
+      });
+      if (obstetricDetails?.length > 0) {
+        await ObstetricHistoryDetail.bulkCreate(
+          obstetricDetails.map((item) => ({
+            ...item,
+            gynecoId: gynecoRow.gynecoId,
+          })),
+          { transaction: t },
+        );
+      }
+    }
+
+    const upsertOneToOne = async (Model, data) => {
+      if (!data) return;
+      const existingRow = await Model.findOne({
+        where: { assessmentId: assessment.assessmentId },
+        transaction: t,
+      });
+      if (existingRow) {
+        await existingRow.update(data, { transaction: t });
+      } else {
+        await Model.create(
+          { ...data, assessmentId: assessment.assessmentId },
+          { transaction: t },
+        );
+      }
+    };
+
+    await upsertOneToOne(DailySkincareRoutine, skincareRoutine);
+
+    if (lifestyleHabit) {
+      lifestyleHabit.dayDescription = lifestyleHabit.dayDescription ?? "";
+      await upsertOneToOne(LifestyleHabit, lifestyleHabit);
+    }
+
+    await PatientDietRating.destroy({
+      where: { assessmentId: assessment.assessmentId },
+      transaction: t,
+    });
+    if (dietRatings?.length > 0) {
+      await PatientDietRating.bulkCreate(
+        dietRatings.map((item) => ({
+          ...item,
+          assessmentId: assessment.assessmentId,
+        })),
+        { transaction: t },
+      );
+    }
+
+    await PatientSkinPractice.destroy({
+      where: { assessmentId: assessment.assessmentId },
+      transaction: t,
+    });
+    if (skinPractices?.length > 0) {
+      await PatientSkinPractice.bulkCreate(
+        skinPractices.map((item) => ({
+          ...item,
+          assessmentId: assessment.assessmentId,
+        })),
+        { transaction: t },
+      );
+    }
+
+    await upsertOneToOne(PatientMedicalBackground, medicalBackground);
+    await upsertOneToOne(PatientAllergiesRecord, allergiesRecord);
+    await upsertOneToOne(BodyEvaluation, bodyEvaluation);
+
+    if (facialEvaluation) {
+      const sanitizedFacial = {
+        ...facialEvaluation,
+        glogauScale: facialEvaluation.glogauScale || null,
+        glogauObservations: facialEvaluation.glogauObservations || null,
+      };
+      await upsertOneToOne(FacialEvaluation, sanitizedFacial);
+    }
+
+    if (sessionNote && sessionNote.trim()) {
+      await AssessmentSessionNote.create(
+        {
+          assessmentId: assessment.assessmentId,
+          noteDate: serviceDate,
+          noteText: sessionNote.trim(),
+          createdByUserId: req.user.id,
+          packageId: null,
+          sessionNumber: null,
+        },
+        { transaction: t },
+      );
+    }
+
+    await t.commit();
+
+    const fullAssessment = await MedicalAssessment.findByPk(
+      assessment.assessmentId,
+      { include: fullIncludes },
+    );
+
+    res.status(201).json(fullAssessment);
+  } catch (error) {
+    await t.rollback();
+    console.error("Error creating historical entry:", error);
+    res.status(500).json({
+      message: "Server error while creating historical entry",
       error: error.message,
     });
   }

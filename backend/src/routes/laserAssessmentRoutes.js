@@ -6,6 +6,7 @@ import {
   createOrUpdateLaserAssessment,
   getLaserPackageComparison,
   updateLaserAssessmentManually,
+  createLaserHistoricalEntry,
 } from "../controllers/laserAssessmentController.js";
 import {
   protect,
@@ -59,6 +60,14 @@ router.put(
   protect,
   restrictTo("Administrador"),
   updateLaserAssessmentManually,
+);
+
+// Registro histórico (fecha anterior a hoy, sin cita)
+router.post(
+  "/historical-entry",
+  protect,
+  restrictTo("Administrador"),
+  createLaserHistoricalEntry,
 );
 
 export default router;

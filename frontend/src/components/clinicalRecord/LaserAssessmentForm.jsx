@@ -63,6 +63,7 @@ const LaserAssessmentForm = ({
   isEditMode = false,
   embedded = false,
   requireSessionNote = false,
+  allowSessionNote = false,
   packagesForNotes = [],
 }) => {
   const buildStateFromAssessment = (assessment) => {
@@ -145,10 +146,7 @@ const LaserAssessmentForm = ({
   };
 
   const buildPayload = () => ({
-    ...(isEditMode && form.serviceDate
-      ? { assessmentDate: form.serviceDate }
-      : {}),
-    ...(requireSessionNote ? { sessionNote } : {}),
+    ...(requireSessionNote || allowSessionNote ? { sessionNote } : {}),
     general: form.general,
     areasOfInterest: form.selectedAreas,
     clinicalConditions: stripInternalIds(form.clinicalConditions),
@@ -217,15 +215,6 @@ const LaserAssessmentForm = ({
       )}
       {activeTab === "Información" && (
         <div className="flex flex-col gap-4">
-          {isEditMode && (
-            <TextField
-              label="Fecha del servicio *"
-              type="date"
-              max={new Date().toISOString().slice(0, 10)}
-              value={form.serviceDate}
-              onChange={(v) => setForm((prev) => ({ ...prev, serviceDate: v }))}
-            />
-          )}
           <SelectField
             label="¿Dónde nos conociste? *"
             value={form.general.referredMedia}
@@ -421,9 +410,13 @@ const LaserAssessmentForm = ({
 
       {activeTab === "Notas" && (
         <div className="flex flex-col gap-4">
-          {requireSessionNote && (
+          {(requireSessionNote || allowSessionNote) && (
             <TextAreaField
-              label="Nota de esta sesión *"
+              label={
+                requireSessionNote
+                  ? "Nota de esta sesión *"
+                  : "Nota de esta sesión (opcional)"
+              }
               value={sessionNote}
               onChange={setSessionNote}
               rows={4}
