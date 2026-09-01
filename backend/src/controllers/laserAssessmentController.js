@@ -165,7 +165,7 @@ export const getLaserAssessmentByAppointment = async (req, res) => {
     // generales (hábitos, antecedentes, alergias, etc.). Las notas de
     // sesión nunca se copian: son exclusivas de cada servicio.
     if (!assessment) {
-      const otherAssessment = await MedicalAssessment.findOne({
+      const otherAssessment = await LaserMedicalAssessment.findOne({
         where: {
           customerId: appointment.customerId,
           isHidden: false,
